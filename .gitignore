@@ -39,3 +39,7 @@ chain/
 # Coverage
 coverage.txt
 coverage.html
+
+# .DS_STORE
+.DS_Store
+
