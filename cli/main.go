@@ -96,6 +96,8 @@ func main() {
 						// return fmt.Errorf("contract %s can't use storage", stc.ScriptHash)
 					// }
 					// key := v.Estack().Pop().Bytes()
+					// FIRST READ CACHE
+					// THEN RPC
 					// si := GetStorageItem(stc.ScriptHash, key) // CALL RPC
 					// if si != nil && si.Value != nil {
 						// v.Estack().PushVal(si.Value)
@@ -127,3 +129,6 @@ func main() {
 	fmt.Println(err)
 	fmt.Println(v.Estack().ToContractParameters())
 }
+
+var storage map[[32]byte][]byte
+// vm -gaslimit 50 -xx 123 -script 21479823793892943849498
