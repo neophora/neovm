@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 )
 
@@ -16,11 +18,16 @@ func main() {
 	// 		a.Usage = transaction.Script
 	// 	}
 	// }
-	chain := core.Blockchain{}
+	dbc := storage.DBConfiguration{}
+	store, err := storage.NewStore(dbc)
+	fmt.Println(err)
+	pc := config.ProtocolConfiguration{}
+	chain, err := core.NewBlockchain(store, pc, nil)
+	fmt.Println(err)
 	vm := chain.GetTestVM(tx)
 	vm.SetGasLimit(10)
 	vm.LoadScript([]byte{0x00})
-	err := vm.Run()
+	err = vm.Run()
 	fmt.Println(err)
 	fmt.Println(vm.Estack())
 }
