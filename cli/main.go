@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -69,17 +68,10 @@ func main() {
 		case vm.InteropNameToID([]byte("System.Runtime.Deserialize")):
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					data := vm.Estack().Pop().Bytes()
-					item, err := DeserializeItem(data)
-					if err != nil {
-						return err
-					}
-					vm.Estack().Push(&Element{value: item})
-					return nil
+					return vm.RuntimeDeserialize(v)
 				},
-				Price: 0,
+				Price: 1,
 			}
-
 		case vm.InteropNameToID([]byte("System.Runtime.GetTime")):
 			return nil
 		case vm.InteropNameToID([]byte("System.Runtime.GetTrigger")):
@@ -95,17 +87,9 @@ func main() {
 		case vm.InteropNameToID([]byte("System.Runtime.Serialize")):
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					item := vm.Estack().Pop()
-					data, err := SerializeItem(item.value)
-					if err != nil {
-						return err
-					} else if len(data) > MaxItemSize {
-						return errors.New("too big item")
-					}
-					vm.Estack().PushVal(data)
-					return nil
+					return vm.RuntimeSerialize(v)
 				},
-				Price: 0,
+				Price: 1,
 			}
 
 		case vm.InteropNameToID([]byte("System.Storage.Delete")):
