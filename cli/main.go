@@ -2,32 +2,28 @@ package main
 
 import (
 	"fmt"
-	"github.com/nspcc-dev/neo-go/pkg/config"
-	"github.com/nspcc-dev/neo-go/pkg/core"
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
 
 func main() {
-	var tx *transaction.Transaction
-	// if count := len(scriptHashesForVerifying); count != 0 {
-	// 	tx := new(transaction.Transaction)
-	// 	tx.Attributes = make([]transaction.Attribute, count)
-	// 	for i, a := range tx.Attributes {
-	// 		a.Data = scriptHashesForVerifying[i].BytesBE()
-	// 		a.Usage = transaction.Script
+	vm := vm.New()
+	// vm.SetScriptGetter(func(hash util.Uint160) ([]byte, bool) {
+	// 	cs, err := ic.dao.GetContractState(hash)
+	// 	if err != nil {
+	// 		return nil, false
 	// 	}
+	// 	hasDynamicInvoke := (cs.Properties & smartcontract.HasDynamicInvoke) != 0
+	// 	return cs.Script, hasDynamicInvoke
+	// })
+	// vm.RegisterInteropGetter(ic.getSystemInterop)
+	// vm.RegisterInteropGetter(ic.getNeoInterop)
+	// if ic.bc != nil && ic.bc.GetConfig().EnableStateRoot {
+		// vm.RegisterInteropGetter(ic.getNeoxInterop)
 	// }
-	dbc := storage.DBConfiguration{}
-	store, err := storage.NewStore(dbc)
-	fmt.Println(err)
-	pc := config.ProtocolConfiguration{}
-	chain, err := core.NewBlockchain(store, pc, nil)
-	fmt.Println(err)
-	vm := chain.GetTestVM(tx)
+	
 	vm.SetGasLimit(10)
-	vm.LoadScript([]byte{0x00})
-	err = vm.Run()
+	vm.LoadScript([]byte{0x51,0x52,})
+	err := vm.Run()
 	fmt.Println(err)
-	fmt.Println(vm.Estack())
+	fmt.Println(vm.Estack().ToContractParameters())
 }
