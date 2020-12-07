@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"math"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
@@ -70,10 +69,12 @@ func main() {
 					// TODO: call RPC to get the block by Hash or Height
 					a := hash.BytesBE()
 					block, err := Request("getblock", []int{})
+					fmt.Println(a)
+					fmt.Println(block)
 					if err != nil {
 						v.Estack().PushVal([]byte{})
 					} else {
-						v.Estack().PushVal(vm.NewInteropItem(block))
+						v.Estack().PushVal(1)
 					}
 					return nil
 				},
@@ -94,7 +95,7 @@ func main() {
 					if err != nil {
 						v.Estack().PushVal([]byte{})
 					} else {
-						v.Estack().PushVal(vm.NewInteropItem(cs))
+						v.Estack().PushVal(1)
 					}
 					return nil
 				},
@@ -113,7 +114,7 @@ func main() {
 					if err != nil {
 						v.Estack().PushVal([]byte{})
 					} else {
-						v.Estack().PushVal(vm.NewInteropItem(header))
+						v.Estack().PushVal(1)
 					}
 					return nil
 				},
@@ -134,10 +135,11 @@ func main() {
 			return &vm.InteropFuncPrice{
 				Func: func(vm *vm.VM) error {
 					tx, _, err := getTransactionAndHeight(v)
+					fmt.Println(tx)
 					if err != nil {
 						return err
 					}
-					v.Estack().PushVal(vm.NewInteropItem(tx))
+					v.Estack().PushVal(1)
 					return nil
 				},
 				Price: 1,
@@ -239,7 +241,8 @@ func main() {
 					height, _ := Request("getheight", []int{})
 					// header://height/{UINT64}
 					header, _ := Request("getheader", []int{height.ProtoMajor})
-					v.Estack().PushVal(header.Timestamp)
+					fmt.Println(header)
+					v.Estack().PushVal(1)
 					return nil
 				},
 				Price: 1,
