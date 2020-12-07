@@ -9,7 +9,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -627,38 +626,36 @@ func getBlockHashFromElement(element *vm.Element) (util.Uint256, error) {
 }
 
 func getTransactionAndHeight(v *vm.VM) (*transaction.Transaction, uint32, error) {
-	//hashbytes := v.Estack().Pop().Bytes()
-	//hash, err := util.Uint256DecodeBytesBE(hashbytes)
-	//if err != nil {
-	//	return nil, 0, err
-	//}
-	//
-	//data := make(map[string]interface{})
-	//data["jsonrpc"] = "2.0"
-	//data["method"] = "getrawtransaction"
-	//data["params"] = []interface{}{hash.StringBE(), 1}
-	//data["id"] = 1
-	//bytesData, err := json.Marshal(data)
-	//
-	//tx = new()
-	//
-	//if err != nil {
-	//	return err
-	//}
-	//resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
-	//if err != nil {
-	//	return err
-	//}
-	//defer resp.Body.Close()
-	//decoder := json.NewDecoder(resp.Body)
-	//err = decoder.Decode(&data)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//
-	//
-	//return cd.GetTransaction(hash)
+	hashbytes := v.Estack().Pop().Bytes()
+	hash, err := util.Uint256DecodeBytesBE(hashbytes)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	data := make(map[string]interface{})
+	data["jsonrpc"] = "2.0"
+	data["method"] = "getrawtransaction"
+	// query json here
+	data["params"] = []interface{}{hash.StringBE(), 1}
+	data["id"] = 1
+	bytesData, err := json.Marshal(data)
+
+	resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
+	if err != nil {
+		return nil,0,err
+	}
+	defer resp.Body.Close()
+
+	tx := new(transaction.Transaction)
+    jsonbytes,err :=json.Marshal(data["result"])
+    if err!=nil {
+    	return nil,0,err
+	}
+	err = tx.UnmarshalJSON(jsonbytes)
+	if err!=nil {
+		return nil,0,err
+	}
+	return tx,0,err
 }
 
 
