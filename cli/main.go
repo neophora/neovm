@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
 
@@ -18,9 +19,9 @@ func main() {
 	// vm.RegisterInteropGetter(ic.getSystemInterop)
 	// vm.RegisterInteropGetter(ic.getNeoInterop)
 	// if ic.bc != nil && ic.bc.GetConfig().EnableStateRoot {
-		// vm.RegisterInteropGetter(ic.getNeoxInterop)
+	// vm.RegisterInteropGetter(ic.getNeoxInterop)
 	// }
-	v.RegisterInteropGetter(func (id uint32) *vm.InteropFuncPrice {
+	v.RegisterInteropGetter(func(id uint32) *vm.InteropFuncPrice {
 		switch id {
 		case vm.InteropNameToID([]byte("System.Block.GetTransaction")):
 			return nil
@@ -65,7 +66,12 @@ func main() {
 		case vm.InteropNameToID([]byte("System.Runtime.CheckWitness")):
 			return nil
 		case vm.InteropNameToID([]byte("System.Runtime.Deserialize")):
-			return nil
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					return vm.RuntimeDeserialize(v)
+				},
+				Price: 1,
+			}
 		case vm.InteropNameToID([]byte("System.Runtime.GetTime")):
 			return nil
 		case vm.InteropNameToID([]byte("System.Runtime.GetTrigger")):
@@ -74,10 +80,18 @@ func main() {
 			return nil
 		case vm.InteropNameToID([]byte("System.Runtime.Notify")):
 			return nil
+
 		case vm.InteropNameToID([]byte("System.Runtime.Platform")):
 			return nil
+
 		case vm.InteropNameToID([]byte("System.Runtime.Serialize")):
-			return nil
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					return vm.RuntimeSerialize(v)
+				},
+				Price: 1,
+			}
+
 		case vm.InteropNameToID([]byte("System.Storage.Delete")):
 			return nil
 		case vm.InteropNameToID([]byte("System.Storage.Get")):
@@ -86,26 +100,26 @@ func main() {
 					// stcInterface := v.Estack().Pop().Value()
 					// stc, ok := stcInterface.(*StorageContext)
 					// if !ok {
-						// return fmt.Errorf("%T is not a StorageContext", stcInterface)
+					// return fmt.Errorf("%T is not a StorageContext", stcInterface)
 					// }
 					// contract, err := GetContractState(stc.ScriptHash) // CALL RPC
 					// if err != nil {
-						// return errors.New("no contract found")
+					// return errors.New("no contract found")
 					// }
 					// if !contract.HasStorage() {
-						// return fmt.Errorf("contract %s can't use storage", stc.ScriptHash)
+					// return fmt.Errorf("contract %s can't use storage", stc.ScriptHash)
 					// }
 					// key := v.Estack().Pop().Bytes()
 					// FIRST READ CACHE
 					// THEN RPC
 					// si := GetStorageItem(stc.ScriptHash, key) // CALL RPC
 					// if si != nil && si.Value != nil {
-						// v.Estack().PushVal(si.Value)
+					// v.Estack().PushVal(si.Value)
 					// } else {
-						// v.Estack().PushVal([]byte{})
+					// v.Estack().PushVal([]byte{})
 					// }
 					return nil
-				}, 
+				},
 				Price: 0, // TODO FIX
 			}
 		case vm.InteropNameToID([]byte("System.Storage.GetContext")):
@@ -124,11 +138,12 @@ func main() {
 		return nil
 	})
 	v.SetGasLimit(10)
-	v.LoadScript([]byte{0x51,0x52,})
+	v.LoadScript([]byte{0x51, 0x52})
 	err := v.Run()
 	fmt.Println(err)
 	fmt.Println(v.Estack().ToContractParameters())
 }
 
 var storage map[[32]byte][]byte
+
 // vm -gaslimit 50 -xx 123 -script 21479823793892943849498
