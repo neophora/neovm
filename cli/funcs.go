@@ -2,10 +2,7 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
 
@@ -25,17 +22,17 @@ import (
 //	return hash, nil
 //}
 
-func getTransactionAndHeight(v *vm.VM) (*transaction.Transaction, uint32, error) {
-	hashbytes := v.Estack().Pop().Bytes()
-	hash, err := util.Uint256DecodeBytesBE(hashbytes)
-	fmt.Println(hash)
-	if err != nil {
-		return nil, 0, err
-	}
-	// TODO: call RPC to get transaction By hash;
-	// return c	// return cd.GetTransaction(hash)d.GetTransaction(hash)
-	return nil,0,nil
-}
+//func getTransactionAndHeight(v *vm.VM) (*transaction.Transaction, uint32, error) {
+//	hashbytes := v.Estack().Pop().Bytes()
+//	hash, err := util.Uint256DecodeBytesBE(hashbytes)
+//	fmt.Println(hash)
+//	if err != nil {
+//		return nil, 0, err
+//	}
+//	// TODO: call RPC to get transaction By hash;
+//	// return c	// return cd.GetTransaction(hash)d.GetTransaction(hash)
+//	return nil,0,nil
+//}
 
 func popHeaderFromVM(v *vm.VM) (*block.Header, error) {
 	iface := v.Estack().Pop().Value()

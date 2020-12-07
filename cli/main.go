@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -333,9 +335,27 @@ func main() {
 		case vm.InteropNameToID([]byte("System.Blockchain.GetHeight")):
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// CALL RPC to get the height _is there available rpc the get the height?
-					blockchainHeight, _ := Request("getheight", []int{})
-					v.Estack().PushVal(blockchainHeight)
+
+					data := make(map[string]interface{})
+					data["jsonrpc"] = "2.0"
+					data["method"] = "getheight"
+					data["params"] = []int{}
+					data["id"] = 1
+					bytesData, err := json.Marshal(data)
+					if err != nil {
+						return err
+					}
+					resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
+					if err != nil {
+						return err
+					}
+					defer resp.Body.Close()
+					decoder := json.NewDecoder(resp.Body)
+					err = decoder.Decode(&data)
+					if err != nil {
+						return err
+					}
+					v.Estack().PushVal(data["reuslt"].(uint32))
 					return nil
 				},
 				Price: 1,
@@ -345,17 +365,16 @@ func main() {
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
 					tx, _, err := getTransactionAndHeight(v)
-					fmt.Println(tx)
 					if err != nil {
 						return err
 					}
-					v.Estack().PushVal(1)
+					v.Estack().PushVal(vm.NewInteropItem(tx))
 					return nil
 				},
 				Price: 1,
 			}
+
 		case vm.InteropNameToID([]byte("System.Blockchain.GetTransactionHeight")):
-			//
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
 					_, h, err := getTransactionAndHeight(v)
@@ -367,8 +386,11 @@ func main() {
 				},
 				Price: 1,
 			}
+
+
 		case vm.InteropNameToID([]byte("System.Contract.Destroy")):
 			return nil
+
 		case vm.InteropNameToID([]byte("System.Contract.GetStorageContext")):
 			return nil
 		case vm.InteropNameToID([]byte("System.ExecutionEngine.GetCallingScriptHash")):
@@ -435,6 +457,34 @@ func main() {
 			}
 		case vm.InteropNameToID([]byte("System.Runtime.CheckWitness")):
 			return nil
+			////return &vm.InteropFuncPrice{
+			////Func: func(v *vm.VM) error {
+			////	var res bool
+			////	var err error
+			////
+			////	hashOrKey := v.Estack().Pop().Bytes()
+			////	hash, err := util.Uint160DecodeBytesBE(hashOrKey)
+			////	if err != nil {
+			////		// We only accept compressed keys here as per C# implementation.
+			////		if len(hashOrKey) != 33 {
+			////			return errors.New("bad parameter length")
+			////		}
+			////		key := &keys.PublicKey{}
+			////		err = key.DecodeBytes(hashOrKey)
+			////		if err != nil {
+			////			return errors.New("parameter given is neither a key nor a hash")
+			////		}
+			////		res, err = ic.checkKeyedWitness(key)
+			////	} else {
+			////		res, err = ic.checkHashedWitness(hash)
+			////	}
+			////	if err != nil {
+			////		return gherr.Wrap(err, "failed to check")
+			////	}
+			////	v.Estack().PushVal(res)
+			////	return nil
+			////},
+			//}
 		case vm.InteropNameToID([]byte("System.Runtime.Deserialize")):
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
@@ -575,5 +625,41 @@ func getBlockHashFromElement(element *vm.Element) (util.Uint256, error) {
 		return util.Uint256DecodeBytesBE(hashbytes)
 	}
 }
+
+func getTransactionAndHeight(v *vm.VM) (*transaction.Transaction, uint32, error) {
+	//hashbytes := v.Estack().Pop().Bytes()
+	//hash, err := util.Uint256DecodeBytesBE(hashbytes)
+	//if err != nil {
+	//	return nil, 0, err
+	//}
+	//
+	//data := make(map[string]interface{})
+	//data["jsonrpc"] = "2.0"
+	//data["method"] = "getrawtransaction"
+	//data["params"] = []interface{}{hash.StringBE(), 1}
+	//data["id"] = 1
+	//bytesData, err := json.Marshal(data)
+	//
+	//tx = new()
+	//
+	//if err != nil {
+	//	return err
+	//}
+	//resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
+	//if err != nil {
+	//	return err
+	//}
+	//defer resp.Body.Close()
+	//decoder := json.NewDecoder(resp.Body)
+	//err = decoder.Decode(&data)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//
+	//
+	//return cd.GetTransaction(hash)
+}
+
 
 var rpcaddr = "http://seed1.ngd.network:10332"
