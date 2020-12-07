@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -14,15 +15,16 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"log"
 	"math"
 	"net/http"
+	"strings"
 )
 
 func main() {
-
-	initialize()
 	nvm := vm.New()
+	nvm.SetPriceGetter(getPrice)
 	nvm.SetScriptGetter(func(hash util.Uint160) ([]byte, bool) {
 		data := make(map[string]interface{})
 		data["jsonrpc"] = "2.0"
@@ -50,11 +52,6 @@ func main() {
 		}
 		return sc, data["result"].(map[string]interface{})["properties"].(map[string]interface{})["dynamic_invoke"].(bool)
 	})
-	// vm.RegisterInteropGetter(ic.getSystemInterop)
-	// vm.RegisterInteropGetter(ic.getNeoInterop)
-	// if ic.bc != nil && ic.bc.GetConfig().EnableStateRoot {
-	// vm.RegisterInteropGetter(ic.getNeoxInterop)
-	// }
 	nvm.RegisterInteropGetter(func(id uint32) *vm.InteropFuncPrice {
 		switch id {
 		case vm.InteropNameToID([]byte("System.Block.GetTransaction")):
@@ -754,21 +751,85 @@ func main() {
 		}
 		return nil
 	})
-	nvm.SetGasLimit(10)
-	script, err := hex.DecodeString("20d782db8a38b0eea0d7394e0f007c61c71798867578c77c387c08113903946cc9681a53797374656d2e426c6f636b636861696e2e476574426c6f636b")
+	nvm.SetGasLimit(util.Fixed8(gaslimit))
+	nvm.LoadScript(script)
+	err := nvm.Run()
 	if err != nil {
 		log.Fatalln(err)
 	}
-	nvm.LoadScript(script)
-	err = nvm.Run()
-	fmt.Println(err)
-	fmt.Println(err)
-	fmt.Println(nvm.Estack().ToContractParameters())
+	result := map[string]interface{}{
+		"script":       hex.EncodeToString(script),
+		"state":        nvm.State(),
+		"gas_consumed": nvm.GasConsumed(),
+		"stack":        nvm.Estack().ToContractParameters(),
+	}
+	res, err := json.Marshal(result)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Println(string(res))
 }
 
-var storage map[string][]byte
+func init() {
+	var hexscript string
+	var wits string
+	flag.StringVar(&hexscript, "script", "", "scriptHexFormat")
+	flag.Int64Var(&gaslimit, "gaslimit", 50000000000, "gaslimit")
+	flag.StringVar(&rpcaddr, "rpc", "", "rpcaddr")
+	flag.StringVar(&wits, "wits", "", "witnesses")
+	flag.Parse()
 
-// vm -gaslimit 50 -xx 123 -script 21479823793892943849498
+	storage = make(map[string][]byte)
+	witnesses = make(map[util.Uint160]struct{})
+	for _, v := range strings.Split(wits, ":") {
+		if len(v) == 0 {
+			continue
+		}
+		sc, err := util.Uint160DecodeStringBE(v)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		witnesses[sc] = struct{}{}
+	}
+
+	data := make(map[string]interface{})
+	data["jsonrpc"] = "2.0"
+	data["method"] = "Data.GetCountInUInt64"
+	data["params"] = map[string]interface{}{}
+	data["id"] = 1
+	bytesData, err := json.Marshal(data)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer resp.Body.Close()
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&data)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	height = uint32(data["result"].(float64))
+	script, err = hex.DecodeString(hexscript)
+	if err != nil {
+		log.Fatalln(err)
+	}
+}
+
+var script []byte
+var gaslimit int64
+var storage map[string][]byte
+var witnesses map[util.Uint160]struct{}
+var height uint32
+var rpcaddr string
+const interopGasRatio = 100000
+
+type StorageContext struct {
+	ScriptHash util.Uint160
+	ReadOnly   bool
+}
 
 func getBlockHashFromElement(element *vm.Element) (util.Uint256, error) {
 	var hash util.Uint256
@@ -867,29 +928,92 @@ func popHeaderFromVM(v *vm.VM) (*block.Header, error) {
 	return header, nil
 }
 
-func initialize() error {
-	data := make(map[string]interface{})
-	data["jsonrpc"] = "2.0"
-	data["method"] = "getblockcount"
-	data["params"] = []interface{}{}
-	data["id"] = 1
-	bytesData, err := json.Marshal(data)
-
-	resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
-	if err != nil {
-		return err
+func getPrice(v *vm.VM, op opcode.Opcode, parameter []byte) util.Fixed8 {
+	if op <= opcode.NOP {
+		return 0
 	}
-	defer resp.Body.Close()
-	height = uint32(data["result"].(float64))
-	return nil
+
+	switch op {
+	case opcode.APPCALL, opcode.TAILCALL:
+		return toFixed8(10)
+	case opcode.SYSCALL:
+		interopID := vm.GetInteropID(parameter)
+		return getSyscallPrice(v, interopID)
+	case opcode.SHA1, opcode.SHA256:
+		return toFixed8(10)
+	case opcode.HASH160, opcode.HASH256:
+		return toFixed8(20)
+	case opcode.CHECKSIG, opcode.VERIFY:
+		return toFixed8(100)
+	case opcode.CHECKMULTISIG:
+		estack := v.Estack()
+		if estack.Len() == 0 {
+			return toFixed8(1)
+		}
+
+		var cost int
+
+		item := estack.Peek(0)
+		switch item.Item().(type) {
+		case *vm.ArrayItem, *vm.StructItem:
+			cost = len(item.Array())
+		default:
+			cost = int(item.BigInt().Int64())
+		}
+
+		if cost < 1 {
+			return toFixed8(1)
+		}
+
+		return toFixed8(int64(100 * cost))
+	default:
+		return toFixed8(1)
+	}
 }
 
-type StorageContext struct {
-	ScriptHash util.Uint160
-	ReadOnly   bool
+func toFixed8(n int64) util.Fixed8 {
+	return util.Fixed8(n * interopGasRatio)
 }
 
-var witnesses map[util.Uint160]struct{}
-var height uint32
+func getSyscallPrice(v *vm.VM, id uint32) util.Fixed8 {
+	ifunc := v.GetInteropByID(id)
+	if ifunc != nil && ifunc.Price > 0 {
+		return toFixed8(int64(ifunc.Price))
+	}
 
-var rpcaddr = "http://seed1.ngd.network:10332"
+	const (
+		neoAssetCreate           = 0x1fc6c583 // Neo.Asset.Create
+		antSharesAssetCreate     = 0x99025068 // AntShares.Asset.Create
+		neoAssetRenew            = 0x71908478 // Neo.Asset.Renew
+		antSharesAssetRenew      = 0xaf22447b // AntShares.Asset.Renew
+		neoContractCreate        = 0x6ea56cf6 // Neo.Contract.Create
+		neoContractMigrate       = 0x90621b47 // Neo.Contract.Migrate
+		antSharesContractCreate  = 0x2a28d29b // AntShares.Contract.Create
+		antSharesContractMigrate = 0xa934c8bb // AntShares.Contract.Migrate
+		systemStoragePut         = 0x84183fe6 // System.Storage.Put
+		systemStoragePutEx       = 0x3a9be173 // System.Storage.PutEx
+		neoStoragePut            = 0xf541a152 // Neo.Storage.Put
+		antSharesStoragePut      = 0x5f300a9e // AntShares.Storage.Put
+	)
+
+	estack := v.Estack()
+
+	switch id {
+	case neoAssetCreate, antSharesAssetCreate:
+		return util.Fixed8FromInt64(5000)
+	case neoAssetRenew, antSharesAssetRenew:
+		arg := estack.Peek(1).BigInt().Int64()
+		return util.Fixed8FromInt64(arg * 5000)
+	case neoContractCreate, neoContractMigrate, antSharesContractCreate, antSharesContractMigrate:
+		return smartcontract.GetDeploymentPrice(smartcontract.PropertyState(estack.Peek(3).BigInt().Int64()))
+	case systemStoragePut, systemStoragePutEx, neoStoragePut, antSharesStoragePut:
+		// price for storage PUT is 1 GAS per 1 KiB
+		keySize := len(estack.Peek(1).Bytes())
+		valSize := len(estack.Peek(2).Bytes())
+		return util.Fixed8FromInt64(int64((keySize+valSize-1)/1024 + 1))
+	default:
+		return util.Fixed8FromInt64(1)
+	}
+}
+
+
