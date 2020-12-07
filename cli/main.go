@@ -18,14 +18,33 @@ import (
 
 func main() {
 	nvm := vm.New()
-	// vm.SetScriptGetter(func(hash util.Uint160) ([]byte, bool) {
-	// 	cs, err := ic.dao.GetContractState(hash)
-	// 	if err != nil {
-	// 		return nil, false
-	// 	}
-	// 	hasDynamicInvoke := (cs.Properties & smartcontract.HasDynamicInvoke) != 0
-	// 	return cs.Script, hasDynamicInvoke
-	// })
+	nvm.SetScriptGetter(func(hash util.Uint160) ([]byte, bool) {
+		data := make(map[string]interface{})
+		data["jsonrpc"] = "2.0"
+		data["method"] = "getcontractstate"
+		data["params"] = []interface{}{hash.StringBE(), 1}
+		data["id"] = 1
+		bytesData, err := json.Marshal(data)
+		if err != nil {
+			return nil, false
+		}
+		resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
+		if err != nil {
+			return nil, false
+		}
+		defer resp.Body.Close()
+		decoder := json.NewDecoder(resp.Body)
+		err = decoder.Decode(&data)
+		if err != nil {
+			return nil, false
+		}
+
+		sc, err := hex.DecodeString(data["result"].(map[string]interface{})["script"].(string))
+		if err != nil {
+			return nil, false
+		}
+		return sc, data["result"].(map[string]interface{})["properties"].(map[string]interface{})["dynamic_invoke"].(bool)
+	})
 	// vm.RegisterInteropGetter(ic.getSystemInterop)
 	// vm.RegisterInteropGetter(ic.getNeoInterop)
 	// if ic.bc != nil && ic.bc.GetConfig().EnableStateRoot {
@@ -183,6 +202,12 @@ func main() {
 					}
 					cs.Name = name
 
+					sc, err := hex.DecodeString(data["result"].(map[string]interface{})["script"].(string))
+					if err != nil {
+						return err
+					}
+					cs.Script = sc
+
 					for _, item := range data["result"].(map[string]interface{})["parameters"].([]interface{}) {
 						switch item {
 						case "Signature":
@@ -251,6 +276,7 @@ func main() {
 							}
 						}
 					}
+
 					//if err != nil {
 					//	v.Estack().PushVal([]byte{})
 					v.Estack().PushVal(vm.NewInteropItem(cs))
@@ -303,7 +329,6 @@ func main() {
 				},
 				Price: 100,
 			}
-
 
 		case vm.InteropNameToID([]byte("System.Blockchain.GetHeight")):
 			return &vm.InteropFuncPrice{
