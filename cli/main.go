@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"log"
 	"math"
 	"net/http"
 )
@@ -102,7 +104,6 @@ func main() {
 						return err
 					}
 					defer resp.Body.Close()
-
 					decoder := json.NewDecoder(resp.Body)
 					err = decoder.Decode(&data)
 					if err != nil {
@@ -357,8 +358,13 @@ func main() {
 		return nil
 	})
 	nvm.SetGasLimit(10)
-	nvm.LoadScript([]byte{0x51, 0x52})
-	err := nvm.Run()
+	script,err :=hex.DecodeString("20d782db8a38b0eea0d7394e0f007c61c71798867578c77c387c08113903946cc9681a53797374656d2e426c6f636b636861696e2e476574426c6f636b")
+	if err !=nil {
+		log.Fatalln(err)
+	}
+	nvm.LoadScript(script)
+	err = nvm.Run()
+	fmt.Println(err)
 	fmt.Println(err)
 	fmt.Println(nvm.Estack().ToContractParameters())
 }
@@ -398,7 +404,8 @@ func getBlockHashFromElement(element *vm.Element) (util.Uint256, error) {
 		if ok == false {
 			return util.Uint256{0}, errors.New("error")
 		}
-		return util.Uint256DecodeStringLE(str)
+		str = str[2:]
+		return util.Uint256DecodeStringBE(str)
 	} else {
 		return util.Uint256DecodeBytesBE(hashbytes)
 	}
