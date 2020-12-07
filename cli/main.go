@@ -338,7 +338,7 @@ func main() {
 
 					data := make(map[string]interface{})
 					data["jsonrpc"] = "2.0"
-					data["method"] = "getheight"
+					data["method"] = "getblockcount"
 					data["params"] = []int{}
 					data["id"] = 1
 					bytesData, err := json.Marshal(data)
