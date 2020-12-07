@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"log"
@@ -110,11 +112,11 @@ func main() {
 						return err
 					}
 					blk := new(block.Block)
-					bytes, err := json.Marshal(data["result"])
+					jsonbytes, err := json.Marshal(data["result"])
 					if err != nil {
 						return err
 					}
-					err = blk.UnmarshalJSON(bytes)
+					err = blk.UnmarshalJSON(jsonbytes)
 					if err != nil {
 						return err
 					}
@@ -123,7 +125,7 @@ func main() {
 					v.Estack().PushVal(vm.NewInteropItem(blk))
 					return nil
 				},
-				Price: 1,
+				Price: 200,
 			}
 
 		case vm.InteropNameToID([]byte("System.Blockchain.GetContract")):
@@ -131,40 +133,178 @@ func main() {
 				Func: func(v *vm.VM) error {
 					hashbytes := v.Estack().Pop().Bytes()
 					hash, err := util.Uint160DecodeBytesBE(hashbytes)
-					fmt.Println(hash)
 					if err != nil {
 						return err
 					}
-					// TODO: call adhoccontractstate://hash-height/ here to fetch the contract State
-					// cs, err := ic.dao.GetContractState(hash)
+					data := make(map[string]interface{})
+					data["jsonrpc"] = "2.0"
+					data["method"] = "getcontractstate"
+					data["params"] = []interface{}{hash.StringBE(), 1}
+					data["id"] = 1
+					bytesData, err := json.Marshal(data)
 					if err != nil {
-						v.Estack().PushVal([]byte{})
-					} else {
-						v.Estack().PushVal(1)
+						return err
 					}
+					resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
+					if err != nil {
+						return err
+					}
+					defer resp.Body.Close()
+					decoder := json.NewDecoder(resp.Body)
+					err = decoder.Decode(&data)
+					if err != nil {
+						return err
+					}
+					cs := new(state.Contract)
+
+					author, ok := data["result"].(map[string]interface{})["author"].(string)
+					if ok == false {
+						return err
+					}
+					cs.Author = author
+					code_version, ok := data["result"].(map[string]interface{})["code_version"].(string)
+					if ok == false {
+						return err
+					}
+					cs.CodeVersion = code_version
+					description, ok := data["result"].(map[string]interface{})["description"].(string)
+					if ok == false {
+						return err
+					}
+					cs.Description = description
+					email, ok := data["result"].(map[string]interface{})["email"].(string)
+					if ok == false {
+						return err
+					}
+					cs.Email = email
+					name, ok := data["result"].(map[string]interface{})["name"].(string)
+					if ok == false {
+						return err
+					}
+					cs.Name = name
+
+					for _, item := range data["result"].(map[string]interface{})["parameters"].([]interface{}) {
+						switch item {
+						case "Signature":
+							cs.ParamList = append(cs.ParamList, smartcontract.SignatureType)
+						case "Boolean":
+							cs.ParamList = append(cs.ParamList, smartcontract.BoolType)
+						case "Integer":
+							cs.ParamList = append(cs.ParamList, smartcontract.IntegerType)
+						case "Hash160":
+							cs.ParamList = append(cs.ParamList, smartcontract.Hash160Type)
+						case "Hash256":
+							cs.ParamList = append(cs.ParamList, smartcontract.Hash256Type)
+						case "ByteArray":
+							cs.ParamList = append(cs.ParamList, smartcontract.ByteArrayType)
+						case "PublicKey":
+							cs.ParamList = append(cs.ParamList, smartcontract.PublicKeyType)
+						case "String":
+							cs.ParamList = append(cs.ParamList, smartcontract.StringType)
+						case "Array":
+							cs.ParamList = append(cs.ParamList, smartcontract.ArrayType)
+						case "Map":
+							cs.ParamList = append(cs.ParamList, smartcontract.MapType)
+						case "InteropInterface":
+							cs.ParamList = append(cs.ParamList, smartcontract.InteropInterfaceType)
+						case "Void":
+							cs.ParamList = append(cs.ParamList, smartcontract.VoidType)
+						}
+					}
+
+					switch data["result"].(map[string]interface{})["returntype"] {
+					case "Signature":
+						cs.ReturnType = smartcontract.SignatureType
+					case "Boolean":
+						cs.ReturnType = smartcontract.BoolType
+					case "Integer":
+						cs.ReturnType = smartcontract.IntegerType
+					case "Hash160":
+						cs.ReturnType = smartcontract.Hash160Type
+					case "Hash256":
+						cs.ReturnType = smartcontract.Hash256Type
+					case "ByteArray":
+						cs.ReturnType = smartcontract.ByteArrayType
+					case "PublicKey":
+						cs.ReturnType = smartcontract.PublicKeyType
+					case "String":
+						cs.ReturnType = smartcontract.StringType
+					case "Array":
+						cs.ReturnType = smartcontract.ArrayType
+					case "Map":
+						cs.ReturnType = smartcontract.MapType
+					case "InteropInterface":
+						cs.ReturnType = smartcontract.InteropInterfaceType
+					case "Void":
+						cs.ReturnType = smartcontract.VoidType
+					}
+
+					for key, val := range data["result"].(map[string]interface{})["properties"].(map[string]interface{}) {
+						switch key {
+						case "storage":
+							if val == true {
+								cs.Properties |= smartcontract.HasStorage
+							}
+						case "dynamic_invoke":
+							if val == true {
+								cs.Properties |= smartcontract.HasDynamicInvoke
+							}
+						}
+					}
+					//if err != nil {
+					//	v.Estack().PushVal([]byte{})
+					v.Estack().PushVal(vm.NewInteropItem(cs))
 					return nil
 				},
 				Price: 1,
 			}
+
 		case vm.InteropNameToID([]byte("System.Blockchain.GetHeader")):
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
 					hash, err := getBlockHashFromElement(v.Estack().Pop())
-					fmt.Println(hash)
 					if err != nil {
 						return err
 					}
-					// TODO: call RPC to get the block by hash or Height
-					// header, err := ic.bc.GetHeader(hash)
+
+					data := make(map[string]interface{})
+					data["jsonrpc"] = "2.0"
+					data["method"] = "getheader"
+					data["params"] = []interface{}{hash.StringBE(), 1}
+					data["id"] = 1
+					bytesData, err := json.Marshal(data)
 					if err != nil {
-						v.Estack().PushVal([]byte{})
-					} else {
-						v.Estack().PushVal(1)
+						return err
 					}
+					resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
+					if err != nil {
+						return err
+					}
+					defer resp.Body.Close()
+					decoder := json.NewDecoder(resp.Body)
+					err = decoder.Decode(&data)
+					if err != nil {
+						return err
+					}
+
+					hd := new(block.Header)
+					jsonbytes, err := json.Marshal(data["result"])
+					if err != nil {
+						return err
+					}
+					err = hd.UnmarshalJSON(jsonbytes)
+					if err != nil {
+						return err
+					}
+					// cannot get the error for ic.bc.GetHeader(hash)
+					// v.Estack().PushVal([]byte{})
+					v.Estack().PushVal(vm.NewInteropItem(hd))
 					return nil
 				},
-				Price: 1,
+				Price: 100,
 			}
+
+
 		case vm.InteropNameToID([]byte("System.Blockchain.GetHeight")):
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
@@ -358,8 +498,8 @@ func main() {
 		return nil
 	})
 	nvm.SetGasLimit(10)
-	script,err :=hex.DecodeString("20d782db8a38b0eea0d7394e0f007c61c71798867578c77c387c08113903946cc9681a53797374656d2e426c6f636b636861696e2e476574426c6f636b")
-	if err !=nil {
+	script, err := hex.DecodeString("20d782db8a38b0eea0d7394e0f007c61c71798867578c77c387c08113903946cc9681a53797374656d2e426c6f636b636861696e2e476574426c6f636b")
+	if err != nil {
 		log.Fatalln(err)
 	}
 	nvm.LoadScript(script)
@@ -388,7 +528,7 @@ func getBlockHashFromElement(element *vm.Element) (util.Uint256, error) {
 		data["id"] = 1
 		bytesData, err := json.Marshal(data)
 		if err != nil {
-			return util.Uint256{0},err
+			return util.Uint256{0}, err
 		}
 		resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
 		if err != nil {
