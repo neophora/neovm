@@ -7,24 +7,23 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"math"
 )
 
-func getBlockHashFromElement(element *vm.Element) (util.Uint256, error) {
-	var hash util.Uint256
-	hashbytes := element.Bytes()
-	if len(hashbytes) <= 5 {
-		hashint := element.BigInt().Int64()
-		if hashint < 0 || hashint > math.MaxUint32 {
-			return hash, errors.New("bad block index")
-		}
-		// TODO:
-		//hash = bc.GetHeaderHash(int(hashint)) call RPC GetHashByHeight
-	} else {
-		return util.Uint256DecodeBytesBE(hashbytes)
-	}
-	return hash, nil
-}
+//func getBlockHashFromElement(element *vm.Element) (util.Uint256, error) {
+//	var hash util.Uint256
+//	hashbytes := element.Bytes()
+//	if len(hashbytes) <= 5 {
+//		hashint := element.BigInt().Int64()
+//		if hashint < 0 || hashint > math.MaxUint32 {
+//			return hash, errors.New("bad block index")
+//		}
+//		// TODO:
+//		// hash = bc.GetHeaderHash(int(hashint)) call RPC GetHashByHeight
+//	} else {
+//		return util.Uint256DecodeBytesBE(hashbytes)
+//	}
+//	return hash, nil
+//}
 
 func getTransactionAndHeight(v *vm.VM) (*transaction.Transaction, uint32, error) {
 	hashbytes := v.Estack().Pop().Bytes()
