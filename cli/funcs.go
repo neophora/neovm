@@ -32,7 +32,7 @@ func getTransactionAndHeight(v *vm.VM) (*transaction.Transaction, uint32, error)
 		return nil, 0, err
 	}
 	// TODO: call RPC to get transaction By hash;
-	// return cd.GetTransaction(hash)
+	// return c	// return cd.GetTransaction(hash)d.GetTransaction(hash)
 	return ...
 }
 
