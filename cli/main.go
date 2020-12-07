@@ -854,6 +854,19 @@ func pushContextScriptHash(v *vm.VM, n int) error {
 	return nil
 }
 
+func popHeaderFromVM(v *vm.VM) (*block.Header, error) {
+	iface := v.Estack().Pop().Value()
+	header, ok := iface.(*block.Header)
+	if !ok {
+		block, ok := iface.(*block.Block)
+		if !ok {
+			return nil, errors.New("value is not a header or block")
+		}
+		return block.Header(), nil
+	}
+	return header, nil
+}
+
 func initialize() error {
 	data := make(map[string]interface{})
 	data["jsonrpc"] = "2.0"
