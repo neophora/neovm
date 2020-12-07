@@ -9,7 +9,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"log"
@@ -18,6 +20,8 @@ import (
 )
 
 func main() {
+
+	initialize()
 	nvm := vm.New()
 	nvm.SetScriptGetter(func(hash util.Uint160) ([]byte, bool) {
 		data := make(map[string]interface{})
@@ -278,12 +282,14 @@ func main() {
 						}
 					}
 
+					// we must maintain a cd here.
+
 					//if err != nil {
 					//	v.Estack().PushVal([]byte{})
 					v.Estack().PushVal(vm.NewInteropItem(cs))
 					return nil
 				},
-				Price: 1,
+				Price: 100,
 			}
 
 		case vm.InteropNameToID([]byte("System.Blockchain.GetHeader")):
@@ -334,27 +340,7 @@ func main() {
 		case vm.InteropNameToID([]byte("System.Blockchain.GetHeight")):
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-
-					data := make(map[string]interface{})
-					data["jsonrpc"] = "2.0"
-					data["method"] = "getblockcount"
-					data["params"] = []int{}
-					data["id"] = 1
-					bytesData, err := json.Marshal(data)
-					if err != nil {
-						return err
-					}
-					resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
-					if err != nil {
-						return err
-					}
-					defer resp.Body.Close()
-					decoder := json.NewDecoder(resp.Body)
-					err = decoder.Decode(&data)
-					if err != nil {
-						return err
-					}
-					v.Estack().PushVal(data["reuslt"].(uint32))
+					v.Estack().PushVal(height)
 					return nil
 				},
 				Price: 1,
@@ -370,7 +356,7 @@ func main() {
 					v.Estack().PushVal(vm.NewInteropItem(tx))
 					return nil
 				},
-				Price: 1,
+				Price: 200,
 			}
 
 		case vm.InteropNameToID([]byte("System.Blockchain.GetTransactionHeight")):
@@ -383,29 +369,64 @@ func main() {
 					v.Estack().PushVal(h)
 					return nil
 				},
-				Price: 1,
+				Price: 100,
 			}
 
-
 		case vm.InteropNameToID([]byte("System.Contract.Destroy")):
-			return nil
-
-		case vm.InteropNameToID([]byte("System.Contract.GetStorageContext")):
-			return nil
-		case vm.InteropNameToID([]byte("System.ExecutionEngine.GetCallingScriptHash")):
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					return vm.RuntimeSerialize(v)
+					// TODO : to be implemented.
+					return nil
 				},
 				Price: 1,
 			}
-			return nil
+
+		case vm.InteropNameToID([]byte("System.Contract.GetStorageContext")):
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					csInterface := v.Estack().Pop().Value()
+					cs, ok := csInterface.(*state.Contract)
+					if !ok {
+						return fmt.Errorf("%T is not a contract state", cs)
+					}
+					// TODO: to be checked.
+					stc := &StorageContext{
+						ScriptHash: cs.ScriptHash(),
+					}
+					v.Estack().PushVal(vm.NewInteropItem(stc))
+					return nil
+				},
+				Price: 1,
+			}
+		case vm.InteropNameToID([]byte("System.ExecutionEngine.GetCallingScriptHash")):
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					return pushContextScriptHash(v, 1)
+				},
+				Price: 1,
+			}
 		case vm.InteropNameToID([]byte("System.ExecutionEngine.GetEntryScriptHash")):
-			return nil
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					return pushContextScriptHash(v, v.Istack().Len()-1)
+				},
+				Price: 1,
+			}
 		case vm.InteropNameToID([]byte("System.ExecutionEngine.GetExecutingScriptHash")):
-			return nil
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					return pushContextScriptHash(v, 0)
+				},
+				Price: 1,
+			}
 		case vm.InteropNameToID([]byte("System.ExecutionEngine.GetScriptContainer")):
-			return nil
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					// TODO: tx have not been generated.
+					// v.Estack().PushVal(vm.NewInteropItem(ic.tx))
+					return nil
+				},
+			}
 		case vm.InteropNameToID([]byte("System.Header.GetHash")):
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
@@ -455,35 +476,34 @@ func main() {
 				Price: 1,
 			}
 		case vm.InteropNameToID([]byte("System.Runtime.CheckWitness")):
-			return nil
-			////return &vm.InteropFuncPrice{
-			////Func: func(v *vm.VM) error {
-			////	var res bool
-			////	var err error
-			////
-			////	hashOrKey := v.Estack().Pop().Bytes()
-			////	hash, err := util.Uint160DecodeBytesBE(hashOrKey)
-			////	if err != nil {
-			////		// We only accept compressed keys here as per C# implementation.
-			////		if len(hashOrKey) != 33 {
-			////			return errors.New("bad parameter length")
-			////		}
-			////		key := &keys.PublicKey{}
-			////		err = key.DecodeBytes(hashOrKey)
-			////		if err != nil {
-			////			return errors.New("parameter given is neither a key nor a hash")
-			////		}
-			////		res, err = ic.checkKeyedWitness(key)
-			////	} else {
-			////		res, err = ic.checkHashedWitness(hash)
-			////	}
-			////	if err != nil {
-			////		return gherr.Wrap(err, "failed to check")
-			////	}
-			////	v.Estack().PushVal(res)
-			////	return nil
-			////},
-			//}
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					var err error
+					var hash util.Uint160
+
+					hashOrKey := v.Estack().Pop().Bytes()
+					hash, err = util.Uint160DecodeBytesBE(hashOrKey)
+					if err != nil {
+						// We only accept compressed keys here as per C# implementation.
+						if len(hashOrKey) != 33 {
+							return errors.New("bad parameter length")
+						}
+						key := &keys.PublicKey{}
+						err = key.DecodeBytes(hashOrKey)
+						if err != nil {
+							return errors.New("parameter given is neither a key nor a hash")
+						}
+						hash = key.GetScriptHash()
+					}
+					if _, ok := witnesses[hash]; ok {
+						v.Estack().PushVal(true)
+					} else {
+						v.Estack().PushVal(false)
+					}
+					return nil
+				},
+				Price: 200,
+			}
 		case vm.InteropNameToID([]byte("System.Runtime.Deserialize")):
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
@@ -494,28 +514,69 @@ func main() {
 		case vm.InteropNameToID([]byte("System.Runtime.GetTime")):
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// User current
-					// we will get the header by call rpc
-					// first GetTheCurrentHeight
-					height, _ := Request("getheight", []int{})
-					// header://height/{UINT64}
-					header, _ := Request("getheader", []int{height.ProtoMajor})
-					fmt.Println(header)
-					v.Estack().PushVal(1)
+					data := make(map[string]interface{})
+					data["jsonrpc"] = "2.0"
+					data["method"] = "getblockheader"
+					data["params"] = []interface{}{height, 1}
+					data["id"] = 1
+					bytesData, err := json.Marshal(data)
+					if err != nil {
+						return err
+					}
+					resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
+					if err != nil {
+						return err
+					}
+					defer resp.Body.Close()
+					decoder := json.NewDecoder(resp.Body)
+					err = decoder.Decode(&data)
+					if err != nil {
+						return err
+					}
+					ts := uint32(data["result"].(map[string]interface{})["time"].(float64))
+					v.Estack().PushVal(ts)
 					return nil
 				},
 				Price: 1,
 			}
 			return nil
+
 		case vm.InteropNameToID([]byte("System.Runtime.GetTrigger")):
-			return nil
-		case vm.InteropNameToID([]byte("System.Runtime.Log")):
-			return nil
-		case vm.InteropNameToID([]byte("System.Runtime.Notify")):
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					// TODO : to be implemented
+					v.Estack().PushVal(byte(trigger.Application))
+					return nil
+				},
+				Price: 1,
+			}
 			return nil
 
-		case vm.InteropNameToID([]byte("System.Runtime.Platform")):
+		case vm.InteropNameToID([]byte("System.Runtime.Log")):
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					v.Estack().Pop().Bytes()
+					return nil
+				},
+			}
 			return nil
+		case vm.InteropNameToID([]byte("System.Runtime.Notify")):
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					v.Estack().Pop()
+					return nil
+				},
+				Price: 1,
+			}
+
+		case vm.InteropNameToID([]byte("System.Runtime.Platform")):
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					v.Estack().PushVal([]byte("NEO"))
+					return nil
+				},
+				Price: 1,
+			}
 
 		case vm.InteropNameToID([]byte("System.Runtime.Serialize")):
 			return &vm.InteropFuncPrice{
@@ -524,50 +585,172 @@ func main() {
 				},
 				Price: 1,
 			}
-
 		case vm.InteropNameToID([]byte("System.Storage.Delete")):
-			return nil
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					stcInterface := v.Estack().Pop().Value()
+					stc, ok := stcInterface.(*StorageContext)
+					if !ok {
+						return fmt.Errorf("%T is not a StorageContext", stcInterface)
+					}
+					if stc.ReadOnly {
+						return errors.New("StorageContext is read only")
+					}
+					// TODO: check
+					key := v.Estack().Pop().Bytes()
+
+					sc := hex.EncodeToString(stc.ScriptHash.BytesBE()) + hex.EncodeToString(key)
+					storage[sc] = []byte{}
+					return nil
+				},
+				Price: 100,
+			}
 		case vm.InteropNameToID([]byte("System.Storage.Get")):
-			//return &vm.InteropFuncPrice{
-			//	Func: func(v *vm.VM) error {
-			//		stcInterface := v.Estack().Pop().Value()
-			//		stc, ok := stcInterface.(*StorageContext)
-			//		if !ok {
-			//		return fmt.Errorf("%T is not a StorageContext", stcInterface)
-			//		}
-			//		contract, err := GetContractState(stc.ScriptHash) // CALL RPC
-			//		if err != nil {
-			//		return errors.New("no contract found")
-			//		}
-			//		if !contract.HasStorage() {
-			//		return fmt.Errorf("contract %s can't use storage", stc.ScriptHash)
-			//		}
-			//		key := v.Estack().Pop().Bytes()
-			//		FIRST READ CACHE
-			//		THEN RPC
-			//		si := GetStorageItem(stc.ScriptHash, key) // CALL RPC
-			//		if si != nil && si.Value != nil {
-			//		v.Estack().PushVal(si.Value)
-			//		} else {
-			//		v.Estack().PushVal([]byte{})
-			//		}
-			//		return nil
-			//	},
-			//	Price: 0, // TODO FIX
-			//}
-			return nil
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					stcInterface := v.Estack().Pop().Value()
+					stc, ok := stcInterface.(*StorageContext)
+					if !ok {
+						return fmt.Errorf("%T is not a StorageContext", stcInterface)
+					}
+					// then get online
+					// TODO: to be checked
+					key := v.Estack().Pop().Bytes()
+					// fetch from storage first
+					sc := hex.EncodeToString(stc.ScriptHash.BytesBE()) + hex.EncodeToString(key)
+
+					if ret, ok := storage[sc]; ok {
+						v.Estack().PushVal(ret)
+					} else {
+						// query from remote
+						data := make(map[string]interface{})
+						data["jsonrpc"] = "2.0"
+						data["method"] = "Data.GetStorageByDBKeyHeightInHex"
+						data["params"] = []interface{}{map[string]interface{}{"DBKey": sc, "Height": height}}
+						data["id"] = 1
+						bytesData, err := json.Marshal(data)
+						if err != nil {
+							return err
+						}
+						resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
+						if err != nil {
+							return err
+						}
+						defer resp.Body.Close()
+						decoder := json.NewDecoder(resp.Body)
+						err = decoder.Decode(&data)
+						if err != nil {
+							return err
+						}
+						scremote, err := hex.DecodeString(data["result"].(string))
+						if err != nil {
+							return err
+						}
+						v.Estack().PushVal(scremote)
+
+					}
+					return nil
+				},
+				Price: 100,
+			}
 		case vm.InteropNameToID([]byte("System.Storage.GetContext")):
-			return nil
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					sc := &StorageContext{
+						ScriptHash: getContextScriptHash(v, 0),
+						ReadOnly:   false,
+					}
+					v.Estack().PushVal(vm.NewInteropItem(sc))
+					return nil
+				},
+				Price: 1,
+			}
+
 		case vm.InteropNameToID([]byte("System.Storage.GetReadOnlyContext")):
-			return nil
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					sc := &StorageContext{
+						ScriptHash: getContextScriptHash(v, 0),
+						ReadOnly:   true,
+					}
+					v.Estack().PushVal(vm.NewInteropItem(sc))
+					return nil
+				},
+				Price: 1,
+			}
+
 		case vm.InteropNameToID([]byte("System.Storage.Put")):
-			return nil
+			// put into local storage
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					stcInterface := v.Estack().Pop().Value()
+					stc, ok := stcInterface.(*StorageContext)
+					if !ok {
+						return fmt.Errorf("%T is not a StorageContext", stcInterface)
+					}
+					key := v.Estack().Pop().Bytes()
+					value := v.Estack().Pop().Bytes()
+					sc := hex.EncodeToString(stc.ScriptHash.BytesBE()) + hex.EncodeToString(key)
+					storage[sc] = value
+					return nil
+				},
+				Price: 1000,
+			}
+
 		case vm.InteropNameToID([]byte("System.Storage.PutEx")):
-			return nil
+			// put into local storage
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					stcInterface := v.Estack().Pop().Value()
+					stc, ok := stcInterface.(*StorageContext)
+					if !ok {
+						return fmt.Errorf("%T is not a StorageContext", stcInterface)
+					}
+					key := v.Estack().Pop().Bytes()
+					value := v.Estack().Pop().Bytes()
+					sc := hex.EncodeToString(stc.ScriptHash.BytesBE()) + hex.EncodeToString(key)
+					// TODO: fix
+					v.Estack().Pop().BigInt().Int64()
+					storage[sc] = value
+					return nil
+				},
+				Price: 1000,
+			}
+
 		case vm.InteropNameToID([]byte("System.StorageContext.AsReadOnly")):
-			return nil
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					stcInterface := v.Estack().Pop().Value()
+					stc, ok := stcInterface.(*StorageContext)
+					if !ok {
+						return fmt.Errorf("%T is not a StorageContext", stcInterface)
+					}
+					if !stc.ReadOnly {
+						stx := &StorageContext{
+							ScriptHash: stc.ScriptHash,
+							ReadOnly:   true,
+						}
+						stc = stx
+					}
+					v.Estack().PushVal(vm.NewInteropItem(stc))
+					return nil
+				},
+				Price: 1,
+			}
+
 		case vm.InteropNameToID([]byte("System.Transaction.GetHash")):
-			return nil
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					txInterface := v.Estack().Pop().Value()
+					tx, ok := txInterface.(*transaction.Transaction)
+					if !ok {
+						return errors.New("value is not a transaction")
+					}
+					v.Estack().PushVal(tx.Hash().BytesBE())
+					return nil
+				},
+				Price: 1,
+			}
 		}
 		return nil
 	})
@@ -583,7 +766,7 @@ func main() {
 	fmt.Println(nvm.Estack().ToContractParameters())
 }
 
-var storage map[[32]byte][]byte
+var storage map[string][]byte
 
 // vm -gaslimit 50 -xx 123 -script 21479823793892943849498
 
@@ -642,21 +825,58 @@ func getTransactionAndHeight(v *vm.VM) (*transaction.Transaction, uint32, error)
 
 	resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
 	if err != nil {
-		return nil,0,err
+		return nil, 0, err
 	}
 	defer resp.Body.Close()
 
 	tx := new(transaction.Transaction)
-    jsonbytes,err :=json.Marshal(data["result"])
-    if err!=nil {
-    	return nil,0,err
+	jsonbytes, err := json.Marshal(data["result"])
+
+	if err != nil {
+		return nil, 0, err
 	}
 	err = tx.UnmarshalJSON(jsonbytes)
-	if err!=nil {
-		return nil,0,err
+	if err != nil {
+		return nil, 0, err
 	}
-	return tx,0,err
+	return tx, 0, err
 }
 
+func getContextScriptHash(v *vm.VM, n int) util.Uint160 {
+	ctxIface := v.Istack().Peek(n).Value()
+	ctx := ctxIface.(*vm.Context)
+	return ctx.ScriptHash()
+}
+
+func pushContextScriptHash(v *vm.VM, n int) error {
+	h := getContextScriptHash(v, n)
+	v.Estack().PushVal(h.BytesBE())
+	return nil
+}
+
+func initialize() error {
+	data := make(map[string]interface{})
+	data["jsonrpc"] = "2.0"
+	data["method"] = "getblockcount"
+	data["params"] = []interface{}{}
+	data["id"] = 1
+	bytesData, err := json.Marshal(data)
+
+	resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	height = uint32(data["result"].(float64))
+	return nil
+}
+
+type StorageContext struct {
+	ScriptHash util.Uint160
+	ReadOnly   bool
+}
+
+var witnesses map[util.Uint160]struct{}
+var height uint32
 
 var rpcaddr = "http://seed1.ngd.network:10332"
