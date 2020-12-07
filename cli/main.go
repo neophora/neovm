@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	v := vm.New()
+	nvm := vm.New()
 	// vm.SetScriptGetter(func(hash util.Uint160) ([]byte, bool) {
 	// 	cs, err := ic.dao.GetContractState(hash)
 	// 	if err != nil {
@@ -24,7 +24,7 @@ func main() {
 	// if ic.bc != nil && ic.bc.GetConfig().EnableStateRoot {
 	// vm.RegisterInteropGetter(ic.getNeoxInterop)
 	// }
-	v.RegisterInteropGetter(func(id uint32) *vm.InteropFuncPrice {
+	nvm.RegisterInteropGetter(func(id uint32) *vm.InteropFuncPrice {
 		switch id {
 		case vm.InteropNameToID([]byte("System.Block.GetTransaction")):
 			return &vm.InteropFuncPrice{
@@ -46,7 +46,7 @@ func main() {
 			}
 		case vm.InteropNameToID([]byte("System.Block.GetTransactionCount")):
 			return &vm.InteropFuncPrice{
-				Func: func(vm *vm.VM) error {
+				Func: func(v *vm.VM) error {
 					blockInterface := v.Estack().Pop().Value()
 					block, ok := blockInterface.(*block.Block)
 					if !ok {
@@ -58,10 +58,29 @@ func main() {
 				Price: 1,
 			}
 		case vm.InteropNameToID([]byte("System.Block.GetTransactions")):
-			return nil
+			return &vm.InteropFuncPrice{
+			Func: func(v *vm.VM) error {
+				blockInterface := v.Estack().Pop().Value()
+				block, ok := blockInterface.(*block.Block)
+				if !ok {
+					return errors.New("value is not a block")
+				}
+				if len(block.Transactions) > vm.MaxArraySize {
+					return errors.New("too many transactions")
+				}
+				txes := make([]vm.StackItem, 0, len(block.Transactions))
+				for _, tx := range block.Transactions {
+					txes = append(txes, vm.NewInteropItem(tx))
+				}
+				v.Estack().PushVal(txes)
+				return nil
+			},
+			Price: 1,
+			}
+
 		case vm.InteropNameToID([]byte("System.Blockchain.GetBlock")):
 			return &vm.InteropFuncPrice{
-				Func: func(vm *vm.VM) error {
+				Func: func(v *vm.VM) error {
 					hash, err := getBlockHashFromElement(v.Estack().Pop())
 					if err != nil {
 						return err
@@ -83,7 +102,7 @@ func main() {
 
 		case vm.InteropNameToID([]byte("System.Blockchain.GetContract")):
 			return &vm.InteropFuncPrice{
-				Func: func(vm *vm.VM) error {
+				Func: func(v *vm.VM) error {
 					hashbytes := v.Estack().Pop().Bytes()
 					hash, err := util.Uint160DecodeBytesBE(hashbytes)
 					fmt.Println(hash)
@@ -103,7 +122,7 @@ func main() {
 			}
 		case vm.InteropNameToID([]byte("System.Blockchain.GetHeader")):
 			return &vm.InteropFuncPrice{
-				Func: func(vm *vm.VM) error {
+				Func: func(v *vm.VM) error {
 					hash, err := getBlockHashFromElement(v.Estack().Pop())
 					fmt.Println(hash)
 					if err != nil {
@@ -122,7 +141,7 @@ func main() {
 			}
 		case vm.InteropNameToID([]byte("System.Blockchain.GetHeight")):
 			return &vm.InteropFuncPrice{
-				Func: func(vm *vm.VM) error {
+				Func: func(v *vm.VM) error {
 					// CALL RPC to get the height _is there available rpc the get the height?
 					blockchainHeight, _ := Request("getheight", []int{})
 					v.Estack().PushVal(blockchainHeight)
@@ -133,7 +152,7 @@ func main() {
 
 		case vm.InteropNameToID([]byte("System.Blockchain.GetTransaction")):
 			return &vm.InteropFuncPrice{
-				Func: func(vm *vm.VM) error {
+				Func: func(v *vm.VM) error {
 					tx, _, err := getTransactionAndHeight(v)
 					fmt.Println(tx)
 					if err != nil {
@@ -147,7 +166,7 @@ func main() {
 		case vm.InteropNameToID([]byte("System.Blockchain.GetTransactionHeight")):
 			//
 			return &vm.InteropFuncPrice{
-				Func: func(vm *vm.VM) error {
+				Func: func(v *vm.VM) error {
 					_, h, err := getTransactionAndHeight(v)
 					if err != nil {
 						return err
@@ -177,7 +196,7 @@ func main() {
 			return nil
 		case vm.InteropNameToID([]byte("System.Header.GetHash")):
 			return &vm.InteropFuncPrice{
-				Func: func(vm *vm.VM) error {
+				Func: func(v *vm.VM) error {
 					header, err := popHeaderFromVM(v)
 					if err != nil {
 						return err
@@ -189,7 +208,7 @@ func main() {
 			}
 		case vm.InteropNameToID([]byte("System.Header.GetIndex")):
 			return &vm.InteropFuncPrice{
-				Func: func(vm *vm.VM) error {
+				Func: func(v *vm.VM) error {
 					header, err := popHeaderFromVM(v)
 					if err != nil {
 						return err
@@ -201,7 +220,7 @@ func main() {
 			}
 		case vm.InteropNameToID([]byte("System.Header.GetPrevHash")):
 			return &vm.InteropFuncPrice{
-				Func: func(vm *vm.VM) error {
+				Func: func(v *vm.VM) error {
 					header, err := popHeaderFromVM(v)
 					if err != nil {
 						return err
@@ -213,7 +232,7 @@ func main() {
 			}
 		case vm.InteropNameToID([]byte("System.Header.GetTimestamp")):
 			return &vm.InteropFuncPrice{
-				Func: func(vm *vm.VM) error {
+				Func: func(v *vm.VM) error {
 					header, err := popHeaderFromVM(v)
 					if err != nil {
 						return err
@@ -312,11 +331,11 @@ func main() {
 		}
 		return nil
 	})
-	v.SetGasLimit(10)
-	v.LoadScript([]byte{0x51, 0x52})
-	err := v.Run()
+	nvm.SetGasLimit(10)
+	nvm.LoadScript([]byte{0x51, 0x52})
+	err := nvm.Run()
 	fmt.Println(err)
-	fmt.Println(v.Estack().ToContractParameters())
+	fmt.Println(nvm.Estack().ToContractParameters())
 }
 
 var storage map[[32]byte][]byte
