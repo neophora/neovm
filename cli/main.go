@@ -93,7 +93,10 @@ func main() {
 					data["method"] = "getblock"
 					data["params"] = []interface{}{hash.StringBE(), 1}
 					data["id"] = 1
-					bytesData, _ := json.Marshal(data)
+					bytesData, err := json.Marshal(data)
+					if err != nil {
+						return err
+					}
 					resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
 					if err != nil {
 						return err
@@ -377,7 +380,10 @@ func getBlockHashFromElement(element *vm.Element) (util.Uint256, error) {
 		data["method"] = "getblockhash"
 		data["params"] = []interface{}{hashint, 1}
 		data["id"] = 1
-		bytesData, _ := json.Marshal(data)
+		bytesData, err := json.Marshal(data)
+		if err != nil {
+			return util.Uint256{0},err
+		}
 		resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
 		if err != nil {
 			return util.Uint256{0}, err
