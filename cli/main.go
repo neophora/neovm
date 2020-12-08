@@ -23,8 +23,24 @@ import (
 	"strings"
 )
 
+func request(b []byte) (*http.Response, error) {
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", "http://139.196.168.173:8993", bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Access-Control-Allow-Origin", "*")
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 func main() {
 	nvm := vm.New()
+	fmt.Println("here is main!")
 	nvm.SetPriceGetter(getPrice)
 	nvm.SetScriptGetter(func(hash util.Uint160) ([]byte, bool) {
 		data := make(map[string]interface{})
@@ -36,9 +52,9 @@ func main() {
 		if err != nil {
 			return nil, false
 		}
-		resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
-		if err != nil {
-			return nil, false
+		resp, err := request(bytesData)
+		if err !=nil {
+			log.Fatalln(err)
 		}
 		defer resp.Body.Close()
 		decoder := json.NewDecoder(resp.Body)
@@ -123,9 +139,9 @@ func main() {
 					if err != nil {
 						return err
 					}
-					resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
-					if err != nil {
-						return err
+					resp, err := request(bytesData)
+					if err !=nil {
+						log.Fatalln(err)
 					}
 					defer resp.Body.Close()
 					decoder := json.NewDecoder(resp.Body)
@@ -164,9 +180,9 @@ func main() {
 					if err != nil {
 						return err
 					}
-					resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
-					if err != nil {
-						return err
+					resp, err := request(bytesData)
+					if err !=nil {
+						log.Fatalln(err)
 					}
 					defer resp.Body.Close()
 					decoder := json.NewDecoder(resp.Body)
@@ -303,9 +319,9 @@ func main() {
 					if err != nil {
 						return err
 					}
-					resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
-					if err != nil {
-						return err
+					resp, err := request(bytesData)
+					if err !=nil {
+						log.Fatalln(err)
 					}
 					defer resp.Body.Close()
 					decoder := json.NewDecoder(resp.Body)
@@ -512,9 +528,9 @@ func main() {
 					if err != nil {
 						return err
 					}
-					resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
-					if err != nil {
-						return err
+					resp, err := request(bytesData)
+					if err !=nil {
+						log.Fatalln(err)
 					}
 					defer resp.Body.Close()
 					decoder := json.NewDecoder(resp.Body)
@@ -627,9 +643,9 @@ func main() {
 						if err != nil {
 							return err
 						}
-						resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
-						if err != nil {
-							return err
+						resp, err := request(bytesData)
+						if err !=nil {
+							log.Fatalln(err)
 						}
 						defer resp.Body.Close()
 						decoder := json.NewDecoder(resp.Body)
@@ -771,11 +787,19 @@ func main() {
 func init() {
 	var hexscript string
 	var wits string
+	fmt.Println("here is init!")
 	flag.StringVar(&hexscript, "script", "", "scriptHexFormat")
 	flag.Int64Var(&gaslimit, "gaslimit", 50000000000, "gaslimit")
 	flag.StringVar(&rpcaddr, "rpc", "", "rpcaddr")
 	flag.StringVar(&wits, "wits", "", "witnesses")
 	flag.Parse()
+
+	hexscript = "20d782db8a38b0eea0d7394e0f007c61c71798867578c77c387c08113903946cc9681a53797374656d2e426c6f636b636861696e2e476574426c6f636b"
+	rpcaddr = "http://139.196.168.173:8993"
+	fmt.Println(hexscript)
+	fmt.Println(wits)
+	fmt.Println(rpcaddr)
+	fmt.Println(gaslimit)
 
 	storage = make(map[string][]byte)
 	witnesses = make(map[util.Uint160]struct{})
@@ -799,7 +823,7 @@ func init() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
+	resp, err := request(bytesData)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -847,7 +871,7 @@ func getBlockHashFromElement(element *vm.Element) (util.Uint256, error) {
 		if err != nil {
 			return util.Uint256{0}, err
 		}
-		resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
+		resp, err := request(bytesData)
 		if err != nil {
 			return util.Uint256{0}, err
 		}
@@ -878,11 +902,11 @@ func getTransactionAndHeight(v *vm.VM) (*transaction.Transaction, uint32, error)
 	data["jsonrpc"] = "2.0"
 	data["method"] = "Data.GetTransactionByHashInHex"
 	// query json here
-	data["params"] = map[string]interface{}{"Hash":hash.StringLE()}
+	data["params"] = map[string]interface{}{"Hash": hash.StringLE()}
 	data["id"] = 1
 	bytesData, err := json.Marshal(data)
 
-	resp, err := http.Post(rpcaddr, "application/json", bytes.NewReader(bytesData))
+	resp, err := request(bytesData)
 	if err != nil {
 		return nil, 0, err
 	}
