@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -28,8 +29,8 @@ func main() {
 	nvm.SetScriptGetter(func(hash util.Uint160) ([]byte, bool) {
 		data := make(map[string]interface{})
 		data["jsonrpc"] = "2.0"
-		data["method"] = "getcontractstate"
-		data["params"] = []interface{}{hash.StringBE(), 1}
+		data["method"] = "Data.GetContractByHashHeightInHex"
+		data["params"] = []interface{}{map[string]interface{}{"Hash": hash.StringLE(), "Height": height}}
 		data["id"] = 1
 		bytesData, err := json.Marshal(data)
 		if err != nil {
@@ -115,8 +116,8 @@ func main() {
 					}
 					data := make(map[string]interface{})
 					data["jsonrpc"] = "2.0"
-					data["method"] = "getblock"
-					data["params"] = []interface{}{hash.StringBE(), 1}
+					data["method"] = "Data.GetBlockByHashInHex"
+					data["params"] = map[string]interface{}{"Hash": hash.StringLE()}
 					data["id"] = 1
 					bytesData, err := json.Marshal(data)
 					if err != nil {
@@ -132,17 +133,14 @@ func main() {
 					if err != nil {
 						return err
 					}
+					log.Println(data)
 					blk := new(block.Block)
-					jsonbytes, err := json.Marshal(data["result"])
+					b, err := hex.DecodeString(data["result"].(string))
 					if err != nil {
 						return err
 					}
-					err = blk.UnmarshalJSON(jsonbytes)
-					if err != nil {
-						return err
-					}
-					// cannot get the error for ic.bc.GetBlock(hash)
-					// v.Estack().PushVal([]byte{})
+					reader := io.NewBinReaderFromBuf(b)
+					blk.DecodeBinary(reader)
 					v.Estack().PushVal(vm.NewInteropItem(blk))
 					return nil
 				},
@@ -159,8 +157,8 @@ func main() {
 					}
 					data := make(map[string]interface{})
 					data["jsonrpc"] = "2.0"
-					data["method"] = "getcontractstate"
-					data["params"] = []interface{}{hash.StringBE(), 1}
+					data["method"] = "Data.GetContractByHashHeightInHex"
+					data["params"] = []interface{}{map[string]interface{}{"Hash": hash.StringLE(), "Height": height}}
 					data["id"] = 1
 					bytesData, err := json.Marshal(data)
 					if err != nil {
@@ -296,11 +294,10 @@ func main() {
 					if err != nil {
 						return err
 					}
-
 					data := make(map[string]interface{})
 					data["jsonrpc"] = "2.0"
-					data["method"] = "getheader"
-					data["params"] = []interface{}{hash.StringBE(), 1}
+					data["method"] = "Data.GetHeaderByHashInHex"
+					data["params"] = map[string]interface{}{"Hash": hash.StringLE()}
 					data["id"] = 1
 					bytesData, err := json.Marshal(data)
 					if err != nil {
@@ -316,18 +313,13 @@ func main() {
 					if err != nil {
 						return err
 					}
-
 					hd := new(block.Header)
-					jsonbytes, err := json.Marshal(data["result"])
+					b, err := hex.DecodeString(data["result"].(string))
 					if err != nil {
 						return err
 					}
-					err = hd.UnmarshalJSON(jsonbytes)
-					if err != nil {
-						return err
-					}
-					// cannot get the error for ic.bc.GetHeader(hash)
-					// v.Estack().PushVal([]byte{})
+					reader := io.NewBinReaderFromBuf(b)
+					hd.DecodeBinary(reader)
 					v.Estack().PushVal(vm.NewInteropItem(hd))
 					return nil
 				},
@@ -513,8 +505,8 @@ func main() {
 				Func: func(v *vm.VM) error {
 					data := make(map[string]interface{})
 					data["jsonrpc"] = "2.0"
-					data["method"] = "getblockheader"
-					data["params"] = []interface{}{height, 1}
+					data["method"] = "Data.GetHeaderByHeightInHex"
+					data["params"] = map[string]interface{}{"Index": height}
 					data["id"] = 1
 					bytesData, err := json.Marshal(data)
 					if err != nil {
@@ -530,8 +522,14 @@ func main() {
 					if err != nil {
 						return err
 					}
-					ts := uint32(data["result"].(map[string]interface{})["time"].(float64))
-					v.Estack().PushVal(ts)
+					hd := new(block.Header)
+					b, err := hex.DecodeString(data["result"].(string))
+					if err != nil {
+						return err
+					}
+					reader := io.NewBinReaderFromBuf(b)
+					hd.DecodeBinary(reader)
+					v.Estack().PushVal(hd.Timestamp)
 					return nil
 				},
 				Price: 1,
@@ -824,6 +822,7 @@ var storage map[string][]byte
 var witnesses map[util.Uint160]struct{}
 var height uint32
 var rpcaddr string
+
 const interopGasRatio = 100000
 
 type StorageContext struct {
@@ -841,8 +840,8 @@ func getBlockHashFromElement(element *vm.Element) (util.Uint256, error) {
 		}
 		data := make(map[string]interface{})
 		data["jsonrpc"] = "2.0"
-		data["method"] = "getblockhash"
-		data["params"] = []interface{}{hashint, 1}
+		data["method"] = "Data.GetHashByHeightInHex"
+		data["params"] = map[string]interface{}{"Index": uint32(hashint)}
 		data["id"] = 1
 		bytesData, err := json.Marshal(data)
 		if err != nil {
@@ -862,7 +861,6 @@ func getBlockHashFromElement(element *vm.Element) (util.Uint256, error) {
 		if ok == false {
 			return util.Uint256{0}, errors.New("error")
 		}
-		str = str[2:]
 		return util.Uint256DecodeStringBE(str)
 	} else {
 		return util.Uint256DecodeBytesBE(hashbytes)
@@ -1015,5 +1013,3 @@ func getSyscallPrice(v *vm.VM, id uint32) util.Fixed8 {
 		return util.Fixed8FromInt64(1)
 	}
 }
-
-
