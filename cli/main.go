@@ -876,9 +876,9 @@ func getTransactionAndHeight(v *vm.VM) (*transaction.Transaction, uint32, error)
 
 	data := make(map[string]interface{})
 	data["jsonrpc"] = "2.0"
-	data["method"] = "getrawtransaction"
+	data["method"] = "Data.GetTransactionByHashInHex"
 	// query json here
-	data["params"] = []interface{}{hash.StringBE(), 1}
+	data["params"] = map[string]interface{}{"Hash":hash.StringLE()}
 	data["id"] = 1
 	bytesData, err := json.Marshal(data)
 
