@@ -47,15 +47,15 @@ func main() {
 		if err != nil {
 			return nil, false
 		}
-		log.Println(data)
+		log.Println("[RPC RESP]", data)
 		cs := new(state.Contract)
 		b, err := hex.DecodeString(data["result"].(string))
 		if err != nil {
 			return nil, false
 		}
-		reader := io.NewBinReaderFromBuf(b)
+		reader := io.NewBinReaderFromBuf(b[1:])
 		cs.DecodeBinary(reader)
-		log.Println("[GOT CONTRACT]", cs.Script)
+		log.Println("[CONTRACT OK]", hash)
 		return cs.Script, (cs.Properties & smartcontract.HasDynamicInvoke) != 0
 	})
 	nvm.RegisterInteropGetter(func(id uint32) *vm.InteropFuncPrice {
