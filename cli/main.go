@@ -74,6 +74,7 @@ func main() {
 		log.Println("[CONTRACT OK]", hash)
 		return cs.Script, (cs.Properties & smartcontract.HasDynamicInvoke) != 0
 	})
+
 	nvm.RegisterInteropGetter(func(id uint32) *vm.InteropFuncPrice {
 		switch id {
 		case vm.InteropNameToID([]byte("System.Block.GetTransaction")):
@@ -179,7 +180,7 @@ func main() {
 					data := make(map[string]interface{})
 					data["jsonrpc"] = "2.0"
 					data["method"] = "Data.GetContractByHashHeightInHex"
-					data["params"] = []interface{}{map[string]interface{}{"Hash": hash.StringLE(), "Height": height}}
+					data["params"] = map[string]interface{}{"Hash": hash.StringLE(), "Height": height}
 					data["id"] = 1
 					bytesData, err := json.Marshal(data)
 					if err != nil {
@@ -195,113 +196,14 @@ func main() {
 					if err != nil {
 						return err
 					}
+
 					cs := new(state.Contract)
-
-					author, ok := data["result"].(map[string]interface{})["author"].(string)
-					if ok == false {
-						return err
-					}
-					cs.Author = author
-					code_version, ok := data["result"].(map[string]interface{})["code_version"].(string)
-					if ok == false {
-						return err
-					}
-					cs.CodeVersion = code_version
-					description, ok := data["result"].(map[string]interface{})["description"].(string)
-					if ok == false {
-						return err
-					}
-					cs.Description = description
-					email, ok := data["result"].(map[string]interface{})["email"].(string)
-					if ok == false {
-						return err
-					}
-					cs.Email = email
-					name, ok := data["result"].(map[string]interface{})["name"].(string)
-					if ok == false {
-						return err
-					}
-					cs.Name = name
-
-					sc, err := hex.DecodeString(data["result"].(map[string]interface{})["script"].(string))
+					b, err := hex.DecodeString(data["result"].(string))
 					if err != nil {
 						return err
 					}
-					cs.Script = sc
-
-					for _, item := range data["result"].(map[string]interface{})["parameters"].([]interface{}) {
-						switch item {
-						case "Signature":
-							cs.ParamList = append(cs.ParamList, smartcontract.SignatureType)
-						case "Boolean":
-							cs.ParamList = append(cs.ParamList, smartcontract.BoolType)
-						case "Integer":
-							cs.ParamList = append(cs.ParamList, smartcontract.IntegerType)
-						case "Hash160":
-							cs.ParamList = append(cs.ParamList, smartcontract.Hash160Type)
-						case "Hash256":
-							cs.ParamList = append(cs.ParamList, smartcontract.Hash256Type)
-						case "ByteArray":
-							cs.ParamList = append(cs.ParamList, smartcontract.ByteArrayType)
-						case "PublicKey":
-							cs.ParamList = append(cs.ParamList, smartcontract.PublicKeyType)
-						case "String":
-							cs.ParamList = append(cs.ParamList, smartcontract.StringType)
-						case "Array":
-							cs.ParamList = append(cs.ParamList, smartcontract.ArrayType)
-						case "Map":
-							cs.ParamList = append(cs.ParamList, smartcontract.MapType)
-						case "InteropInterface":
-							cs.ParamList = append(cs.ParamList, smartcontract.InteropInterfaceType)
-						case "Void":
-							cs.ParamList = append(cs.ParamList, smartcontract.VoidType)
-						}
-					}
-
-					switch data["result"].(map[string]interface{})["returntype"] {
-					case "Signature":
-						cs.ReturnType = smartcontract.SignatureType
-					case "Boolean":
-						cs.ReturnType = smartcontract.BoolType
-					case "Integer":
-						cs.ReturnType = smartcontract.IntegerType
-					case "Hash160":
-						cs.ReturnType = smartcontract.Hash160Type
-					case "Hash256":
-						cs.ReturnType = smartcontract.Hash256Type
-					case "ByteArray":
-						cs.ReturnType = smartcontract.ByteArrayType
-					case "PublicKey":
-						cs.ReturnType = smartcontract.PublicKeyType
-					case "String":
-						cs.ReturnType = smartcontract.StringType
-					case "Array":
-						cs.ReturnType = smartcontract.ArrayType
-					case "Map":
-						cs.ReturnType = smartcontract.MapType
-					case "InteropInterface":
-						cs.ReturnType = smartcontract.InteropInterfaceType
-					case "Void":
-						cs.ReturnType = smartcontract.VoidType
-					}
-
-					for key, val := range data["result"].(map[string]interface{})["properties"].(map[string]interface{}) {
-						switch key {
-						case "storage":
-							if val == true {
-								cs.Properties |= smartcontract.HasStorage
-							}
-						case "dynamic_invoke":
-							if val == true {
-								cs.Properties |= smartcontract.HasDynamicInvoke
-							}
-						}
-					}
-
-					// we must maintain a cd here.
-
-					//if err != nil {
-					//	v.Estack().PushVal([]byte{})
+					reader := io.NewBinReaderFromBuf(b[1:])
+					cs.DecodeBinary(reader)
 					v.Estack().PushVal(vm.NewInteropItem(cs))
 					return nil
 				},
@@ -642,7 +544,7 @@ func main() {
 						data := make(map[string]interface{})
 						data["jsonrpc"] = "2.0"
 						data["method"] = "Data.GetStorageByDBKeyHeightInHex"
-						data["params"] = []interface{}{map[string]interface{}{"DBKey": sc, "Height": height}}
+						data["params"] = map[string]interface{}{"DBKey": sc, "Height": height}
 						data["id"] = 1
 						bytesData, err := json.Marshal(data)
 						if err != nil {
