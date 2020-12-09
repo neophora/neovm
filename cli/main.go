@@ -1503,7 +1503,7 @@ func getBlockHashFromElement(element *vm.Element) (util.Uint256, error) {
 		data := make(map[string]interface{})
 		data["jsonrpc"] = "2.0"
 		data["method"] = "Data.GetHashByHeightInHex"
-		data["params"] = map[string]interface{}{"Index": uint32(hashint)}
+		data["params"] = map[string]interface{}{"Height": uint32(hashint)}
 		data["id"] = 1
 		bytesData, err := json.Marshal(data)
 		if err != nil {
