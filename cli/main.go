@@ -361,6 +361,7 @@ func main() {
 					v.Estack().Pop().Bytes()
 					return nil
 				},
+				Price: 1,
 			}
 		case vm.InteropNameToID([]byte("System.Runtime.Notify")):
 			log.Println("[SYSCALL]", "System.Runtime.Notify")
@@ -662,7 +663,10 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Block.GetTransaction")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					block := v.Estack().Pop().Value().(*block.Block)
+					index := v.Estack().Pop().BigInt().Int64()
+					tx := block.Transactions[index]
+					v.Estack().PushVal(vm.NewInteropItem(tx))
 					return nil
 				},
 				Price: 1,
@@ -671,7 +675,8 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Block.GetTransactionCount")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					block := v.Estack().Pop().Value().(*block.Block)
+					v.Estack().PushVal(len(block.Transactions))
 					return nil
 				},
 				Price: 1,
@@ -680,7 +685,15 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Block.GetTransactions")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					block := v.Estack().Pop().Value().(*block.Block)
+					if len(block.Transactions) > vm.MaxArraySize {
+						return errors.New("too many transactions")
+					}
+					txes := make([]vm.StackItem, 0, len(block.Transactions))
+					for _, tx := range block.Transactions {
+						txes = append(txes, vm.NewInteropItem(tx))
+					}
+					v.Estack().PushVal(txes)
 					return nil
 				},
 				Price: 1,
@@ -707,7 +720,21 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Blockchain.GetBlock")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					hash := mERR(getBlockHashFromElement(v.Estack().Pop())).(util.Uint256)
+					data := map[string]interface{}{
+						"jsonrpc": "2.0",
+						"id":      rand.Uint32(),
+						"method":  "Data.GetBlockByHashInHex",
+						"params":  map[string]interface{}{"Hash": hash.StringLE()},
+					}
+					log.Println("[REQ]", data)
+					resp := mERR(http.Post(rpcaddr, "application/json", bytes.NewReader(mERR(json.Marshal(data)).([]byte)))).(*http.Response)
+					defer resp.Body.Close()
+					mCHK(json.NewDecoder(resp.Body).Decode(&data))
+					log.Println("[RESP]", data)
+					blk := new(block.Block)
+					blk.DecodeBinary(io.NewBinReaderFromBuf(mERR(hex.DecodeString(data["result"].(string))).([]byte)))
+					v.Estack().PushVal(vm.NewInteropItem(blk))
 					return nil
 				},
 				Price: 200,
@@ -716,7 +743,21 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Blockchain.GetContract")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					hash := mERR(util.Uint160DecodeBytesBE(v.Estack().Pop().Bytes())).(util.Uint160)
+					data := map[string]interface{}{
+						"jsonrpc": "2.0",
+						"id":      rand.Uint32(),
+						"method":  "Data.GetContractByHashHeightInHex",
+						"params":  map[string]interface{}{"Hash": hash.StringBE(), "Height": height},
+					}
+					log.Println("[REQ]", data)
+					resp := mERR(http.Post(rpcaddr, "application/json", bytes.NewReader(mERR(json.Marshal(data)).([]byte)))).(*http.Response)
+					defer resp.Body.Close()
+					mCHK(json.NewDecoder(resp.Body).Decode(&data))
+					log.Println("[RESP]", data)
+					cs := new(state.Contract)
+					cs.DecodeBinary(io.NewBinReaderFromBuf(mERR(hex.DecodeString(data["result"].(string))).([]byte)[1:]))
+					v.Estack().PushVal(vm.NewInteropItem(cs))
 					return nil
 				},
 				Price: 100,
@@ -725,7 +766,21 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Blockchain.GetHeader")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					hash := mERR(getBlockHashFromElement(v.Estack().Pop())).(util.Uint256)
+					data := map[string]interface{}{
+						"jsonrpc": "2.0",
+						"id":      rand.Uint32(),
+						"method":  "Data.GetHeaderByHashInHex",
+						"params":  map[string]interface{}{"Hash": hash.StringLE()},
+					}
+					log.Println("[REQ]", data)
+					resp := mERR(http.Post(rpcaddr, "application/json", bytes.NewReader(mERR(json.Marshal(data)).([]byte)))).(*http.Response)
+					defer resp.Body.Close()
+					mCHK(json.NewDecoder(resp.Body).Decode(&data))
+					log.Println("[RESP]", data)
+					hd := new(block.Header)
+					hd.DecodeBinary(io.NewBinReaderFromBuf(mERR(hex.DecodeString(data["result"].(string))).([]byte)))
+					v.Estack().PushVal(vm.NewInteropItem(hd))
 					return nil
 				},
 				Price: 100,
@@ -734,7 +789,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Blockchain.GetHeight")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					v.Estack().PushVal(height)
 					return nil
 				},
 				Price: 1,
@@ -743,7 +798,11 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Blockchain.GetTransaction")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					tx, _, err := getTransactionAndHeight(v)
+					if err != nil {
+						return err
+					}
+					v.Estack().PushVal(vm.NewInteropItem(tx))
 					return nil
 				},
 				Price: 100,
@@ -752,7 +811,11 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Blockchain.GetTransactionHeight")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					_, h, err := getTransactionAndHeight(v)
+					if err != nil {
+						return err
+					}
+					v.Estack().PushVal(h)
 					return nil
 				},
 				Price: 100,
@@ -797,7 +860,12 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Contract.GetStorageContext")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					cs := v.Estack().Pop().Value().(*state.Contract)
+					// TODO: CHECK
+					stc := &StorageContext{
+						ScriptHash: cs.ScriptHash(),
+					}
+					v.Estack().PushVal(vm.NewInteropItem(stc))
 					return nil
 				},
 				Price: 1,
@@ -869,7 +937,8 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Header.GetHash")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					header := mERR(popHeaderFromVM(v)).(*block.Header)
+					v.Estack().PushVal(header.Hash().BytesBE())
 					return nil
 				},
 				Price: 1,
@@ -878,7 +947,8 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Header.GetIndex")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					header := mERR(popHeaderFromVM(v)).(*block.Header)
+					v.Estack().PushVal(header.Index)
 					return nil
 				},
 				Price: 1,
@@ -905,7 +975,8 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Header.GetPrevHash")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					header := mERR(popHeaderFromVM(v)).(*block.Header)
+					v.Estack().PushVal(header.PrevHash.BytesBE())
 					return nil
 				},
 				Price: 1,
@@ -914,7 +985,8 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Header.GetTimestamp")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					header := mERR(popHeaderFromVM(v)).(*block.Header)
+					v.Estack().PushVal(header.Timestamp)
 					return nil
 				},
 				Price: 1,
@@ -1031,7 +1103,28 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Runtime.CheckWitness")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					var err error
+					var hash util.Uint160
+
+					hashOrKey := v.Estack().Pop().Bytes()
+					hash, err = util.Uint160DecodeBytesBE(hashOrKey)
+					if err != nil {
+						// We only accept compressed keys here as per C# implementation.
+						if len(hashOrKey) != 33 {
+							return errors.New("bad parameter length")
+						}
+						key := &keys.PublicKey{}
+						err = key.DecodeBytes(hashOrKey)
+						if err != nil {
+							return errors.New("parameter given is neither a key nor a hash")
+						}
+						hash = key.GetScriptHash()
+					}
+					if _, ok := witnesses[hash]; ok {
+						v.Estack().PushVal(true)
+					} else {
+						v.Estack().PushVal(false)
+					}
 					return nil
 				},
 				Price: 200,
@@ -1040,8 +1133,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Runtime.Deserialize")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
-					return nil
+					return vm.RuntimeDeserialize(v)
 				},
 				Price: 1,
 			}
@@ -1049,7 +1141,20 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Runtime.GetTime")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					data := map[string]interface{}{
+						"jsonrpc": "2.0",
+						"id":      rand.Uint32(),
+						"method":  "Data.GetHeaderByHeightInHex",
+						"params":  map[string]interface{}{"Height": height},
+					}
+					log.Println("[REQ]", data)
+					resp := mERR(http.Post(rpcaddr, "application/json", bytes.NewReader(mERR(json.Marshal(data)).([]byte)))).(*http.Response)
+					defer resp.Body.Close()
+					mCHK(json.NewDecoder(resp.Body).Decode(&data))
+					log.Println("[RESP]", data)
+					hd := new(block.Header)
+					hd.DecodeBinary(io.NewBinReaderFromBuf(mERR(hex.DecodeString(data["result"].(string))).([]byte)))
+					v.Estack().PushVal(hd.Timestamp)
 					return nil
 				},
 				Price: 1,
@@ -1067,7 +1172,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Runtime.Log")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					v.Estack().Pop().Bytes()
 					return nil
 				},
 				Price: 1,
@@ -1076,7 +1181,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Runtime.Notify")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					v.Estack().Pop()
 					return nil
 				},
 				Price: 1,
@@ -1085,8 +1190,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Runtime.Serialize")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
-					return nil
+					return vm.RuntimeSerialize(v)
 				},
 				Price: 1,
 			}
@@ -1094,7 +1198,14 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Storage.Delete")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					stc := v.Estack().Pop().Value().(*StorageContext)
+					if stc.ReadOnly {
+						return errors.New("StorageContext is read only")
+					}
+					// TODO: CHECK
+					key := v.Estack().Pop().Bytes()
+					sc := hex.EncodeToString(stc.ScriptHash.BytesBE()) + hex.EncodeToString(key)
+					storage[sc] = []byte{}
 					return nil
 				},
 				Price: 100,
@@ -1112,7 +1223,26 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Storage.Get")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					stc := v.Estack().Pop().Value().(*StorageContext)
+					key := v.Estack().Pop().Bytes()
+					sc := hex.EncodeToString(stc.ScriptHash.BytesBE()) + hex.EncodeToString(key)
+					if ret, ok := storage[sc]; ok {
+						v.Estack().PushVal(ret)
+					} else {
+						data := map[string]interface{}{
+							"jsonrpc": "2.0",
+							"id":      rand.Uint32(),
+							"method":  "Data.GetStorageByDBKeyHeightInHex",
+							"params":  map[string]interface{}{"DBKey": sc, "Height": height},
+						}
+						log.Println("[REQ]", data)
+						resp := mERR(http.Post(rpcaddr, "application/json", bytes.NewReader(mERR(json.Marshal(data)).([]byte)))).(*http.Response)
+						defer resp.Body.Close()
+						mCHK(json.NewDecoder(resp.Body).Decode(&data))
+						log.Println("[RESP]", data)
+						val := mERR(hex.DecodeString(data["result"].(string))).([]byte)
+						v.Estack().PushVal(val)
+					}
 					return nil
 				},
 				Price: 100,
@@ -1121,7 +1251,11 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Storage.GetContext")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					sc := &StorageContext{
+						ScriptHash: getContextScriptHash(v, 0),
+						ReadOnly:   false,
+					}
+					v.Estack().PushVal(vm.NewInteropItem(sc))
 					return nil
 				},
 				Price: 1,
@@ -1130,7 +1264,11 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Storage.GetReadOnlyContext")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					sc := &StorageContext{
+						ScriptHash: getContextScriptHash(v, 0),
+						ReadOnly:   true,
+					}
+					v.Estack().PushVal(vm.NewInteropItem(sc))
 					return nil
 				},
 				Price: 1,
@@ -1139,7 +1277,11 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Storage.Put")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					stc := v.Estack().Pop().Value().(*StorageContext)
+					key := v.Estack().Pop().Bytes()
+					value := v.Estack().Pop().Bytes()
+					sc := hex.EncodeToString(stc.ScriptHash.BytesBE()) + hex.EncodeToString(key)
+					storage[sc] = value
 					return nil
 				},
 				Price: 1000,
@@ -1148,7 +1290,15 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.StorageContext.AsReadOnly")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					stc := v.Estack().Pop().Value().(*StorageContext)
+					if !stc.ReadOnly {
+						stx := &StorageContext{
+							ScriptHash: stc.ScriptHash,
+							ReadOnly:   true,
+						}
+						stc = stx
+					}
+					v.Estack().PushVal(vm.NewInteropItem(stc))
 					return nil
 				},
 				Price: 1,
@@ -1166,7 +1316,8 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Transaction.GetHash")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// TODO : IMPL
+					tx := v.Estack().Pop().Value().(*transaction.Transaction)
+					v.Estack().PushVal(tx.Hash().BytesBE())
 					return nil
 				},
 				Price: 1,
