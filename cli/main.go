@@ -27,10 +27,11 @@ func main() {
 	nvm := vm.New()
 	nvm.SetPriceGetter(getPrice)
 	nvm.SetScriptGetter(func(hash util.Uint160) ([]byte, bool) {
+		log.Println("[FETCHING CONTRACT]", hash)
 		data := make(map[string]interface{})
 		data["jsonrpc"] = "2.0"
 		data["method"] = "Data.GetContractByHashHeightInHex"
-		data["params"] = []interface{}{map[string]interface{}{"Hash": hash.StringLE(), "Height": height}}
+		data["params"] = map[string]interface{}{"Hash": hash.StringBE(), "Height": height}
 		data["id"] = 1
 		bytesData, err := json.Marshal(data)
 		if err != nil {
@@ -46,12 +47,16 @@ func main() {
 		if err != nil {
 			return nil, false
 		}
-
-		sc, err := hex.DecodeString(data["result"].(map[string]interface{})["script"].(string))
+		log.Println(data)
+		cs := new(state.Contract)
+		b, err := hex.DecodeString(data["result"].(string))
 		if err != nil {
 			return nil, false
 		}
-		return sc, data["result"].(map[string]interface{})["properties"].(map[string]interface{})["dynamic_invoke"].(bool)
+		reader := io.NewBinReaderFromBuf(b)
+		cs.DecodeBinary(reader)
+		log.Println("[GOT CONTRACT]", cs.Script)
+		return cs.Script, (cs.Properties & smartcontract.HasDynamicInvoke) != 0
 	})
 	nvm.RegisterInteropGetter(func(id uint32) *vm.InteropFuncPrice {
 		switch id {
@@ -809,6 +814,7 @@ func init() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	log.Println(data)
 	height = uint32(data["result"].(float64))
 	script, err = hex.DecodeString(hexscript)
 	if err != nil {
@@ -878,7 +884,7 @@ func getTransactionAndHeight(v *vm.VM) (*transaction.Transaction, uint32, error)
 	data["jsonrpc"] = "2.0"
 	data["method"] = "Data.GetTransactionByHashInHex"
 	// query json here
-	data["params"] = map[string]interface{}{"Hash":hash.StringLE()}
+	data["params"] = map[string]interface{}{"Hash": hash.StringLE()}
 	data["id"] = 1
 	bytesData, err := json.Marshal(data)
 
