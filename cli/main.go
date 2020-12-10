@@ -519,11 +519,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Account.GetBalance")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					accInterface := v.Estack().Pop().Value()
-					acc, ok := accInterface.(*state.Account)
-					if !ok {
-						return fmt.Errorf("%T is not an account state", acc)
-					}
+					acc := v.Estack().Pop().Value().(*state.Account)
 					asbytes := v.Estack().Pop().Bytes()
 					ashash, err := util.Uint256DecodeBytesBE(asbytes)
 					if err != nil {
@@ -542,11 +538,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Account.GetScriptHash")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					accInterface := v.Estack().Pop().Value()
-					acc, ok := accInterface.(*state.Account)
-					if !ok {
-						return fmt.Errorf("%T is not an account state", acc)
-					}
+					acc := v.Estack().Pop().Value().(*state.Account)
 					v.Estack().PushVal(acc.ScriptHash.BytesBE())
 					return nil
 				},
@@ -556,11 +548,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Account.GetVotes")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					accInterface := v.Estack().Pop().Value()
-					acc, ok := accInterface.(*state.Account)
-					if !ok {
-						return fmt.Errorf("%T is not an account state", acc)
-					}
+					acc := v.Estack().Pop().Value().(*state.Account)
 					if len(acc.Votes) > vm.MaxArraySize {
 						return errors.New("too many votes")
 					}
@@ -615,11 +603,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Asset.GetAdmin")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					asInterface := v.Estack().Pop().Value()
-					as, ok := asInterface.(*state.Asset)
-					if !ok {
-						return fmt.Errorf("%T is not an asset state", as)
-					}
+					as := v.Estack().Pop().Value().(*state.Asset)
 					v.Estack().PushVal(as.Admin.BytesBE())
 					return nil
 				},
@@ -629,11 +613,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Asset.GetAmount")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					asInterface := v.Estack().Pop().Value()
-					as, ok := asInterface.(*state.Asset)
-					if !ok {
-						return fmt.Errorf("%T is not an asset state", as)
-					}
+					as := v.Estack().Pop().Value().(*state.Asset)
 					v.Estack().PushVal(int64(as.Amount))
 					return nil
 				},
@@ -643,11 +623,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Asset.GetAssetId")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					asInterface := v.Estack().Pop().Value()
-					as, ok := asInterface.(*state.Asset)
-					if !ok {
-						return fmt.Errorf("%T is not an asset state", as)
-					}
+					as := v.Estack().Pop().Value().(*state.Asset)
 					v.Estack().PushVal(as.ID.BytesBE())
 					return nil
 				},
@@ -657,11 +633,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Asset.GetAssetType")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					asInterface := v.Estack().Pop().Value()
-					as, ok := asInterface.(*state.Asset)
-					if !ok {
-						return fmt.Errorf("%T is not an asset state", as)
-					}
+					as := v.Estack().Pop().Value().(*state.Asset)
 					v.Estack().PushVal(int(as.AssetType))
 					return nil
 				},
@@ -671,11 +643,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Asset.GetAvailable")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					asInterface := v.Estack().Pop().Value()
-					as, ok := asInterface.(*state.Asset)
-					if !ok {
-						return fmt.Errorf("%T is not an asset state", as)
-					}
+					as := v.Estack().Pop().Value().(*state.Asset)
 					v.Estack().PushVal(int(as.Available))
 					return nil
 				},
@@ -685,11 +653,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Asset.GetIssuer")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					asInterface := v.Estack().Pop().Value()
-					as, ok := asInterface.(*state.Asset)
-					if !ok {
-						return fmt.Errorf("%T is not an asset state", as)
-					}
+					as := v.Estack().Pop().Value().(*state.Asset)
 					v.Estack().PushVal(as.Issuer.BytesBE())
 					return nil
 				},
@@ -699,11 +663,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Asset.GetOwner")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					asInterface := v.Estack().Pop().Value()
-					as, ok := asInterface.(*state.Asset)
-					if !ok {
-						return fmt.Errorf("%T is not an asset state", as)
-					}
+					as := v.Estack().Pop().Value().(*state.Asset)
 					v.Estack().PushVal(as.Owner.Bytes())
 					return nil
 				},
@@ -713,11 +673,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Asset.GetPrecision")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					asInterface := v.Estack().Pop().Value()
-					as, ok := asInterface.(*state.Asset)
-					if !ok {
-						return fmt.Errorf("%T is not an asset state", as)
-					}
+					as := v.Estack().Pop().Value().(*state.Asset)
 					v.Estack().PushVal(int(as.Precision))
 					return nil
 				},
@@ -737,11 +693,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Attribute.GetData")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					attrInterface := v.Estack().Pop().Value()
-					attr, ok := attrInterface.(*transaction.Attribute)
-					if !ok {
-						return fmt.Errorf("%T is not an attribute", attr)
-					}
+					attr := v.Estack().Pop().Value().(*transaction.Attribute)
 					v.Estack().PushVal(attr.Data)
 					return nil
 				},
@@ -751,11 +703,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Attribute.GetUsage")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					attrInterface := v.Estack().Pop().Value()
-					attr, ok := attrInterface.(*transaction.Attribute)
-					if !ok {
-						return fmt.Errorf("%T is not an attribute", attr)
-					}
+					attr := v.Estack().Pop().Value().(*transaction.Attribute)
 					v.Estack().PushVal(int(attr.Usage))
 					return nil
 				},
@@ -955,11 +903,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Contract.GetScript")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					csInterface := v.Estack().Pop().Value()
-					cs, ok := csInterface.(*state.Contract)
-					if !ok {
-						return fmt.Errorf("%T is not a contract state", cs)
-					}
+					cs := v.Estack().Pop().Value().(*state.Contract)
 					v.Estack().PushVal(cs.Script)
 					return nil
 				},
@@ -983,11 +927,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Contract.IsPayable")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					csInterface := v.Estack().Pop().Value()
-					cs, ok := csInterface.(*state.Contract)
-					if !ok {
-						return fmt.Errorf("%T is not a contract state", cs)
-					}
+					cs := v.Estack().Pop().Value().(*state.Contract)
 					v.Estack().PushVal(cs.IsPayable())
 					return nil
 				},
@@ -1207,11 +1147,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Output.GetAssetId")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					asInterface := v.Estack().Pop().Value()
-					as, ok := asInterface.(*state.Asset)
-					if !ok {
-						return fmt.Errorf("%T is not an asset state", as)
-					}
+					as := v.Estack().Pop().Value().(*state.Asset)
 					v.Estack().PushVal(as.ID.BytesBE())
 					return nil
 				},
@@ -1249,7 +1185,6 @@ func main() {
 				Func: func(v *vm.VM) error {
 					var err error
 					var hash util.Uint160
-
 					hashOrKey := v.Estack().Pop().Bytes()
 					hash, err = util.Uint160DecodeBytesBE(hashOrKey)
 					if err != nil {
@@ -1558,12 +1493,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Witness.GetVerificationScript")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					witInterface := v.Estack().Pop().Value()
-					wit, ok := witInterface.(*transaction.Witness)
-					if !ok {
-						return errors.New("value is not a witness")
-					}
-					// It's important not to share wit.VerificationScript slice with the code running in VM.
+					wit := v.Estack().Pop().Value().(*transaction.Witness)
 					script := make([]byte, len(wit.VerificationScript))
 					copy(script, wit.VerificationScript)
 					v.Estack().PushVal(script)
@@ -1762,15 +1692,7 @@ func pushContextScriptHash(v *vm.VM, n int) error {
 }
 
 func popHeaderFromVM(v *vm.VM) (*block.Header, error) {
-	iface := v.Estack().Pop().Value()
-	header, ok := iface.(*block.Header)
-	if !ok {
-		block, ok := iface.(*block.Block)
-		if !ok {
-			return nil, errors.New("value is not a header or block")
-		}
-		return block.Header(), nil
-	}
+	header := v.Estack().Pop().Value().(*block.Header)
 	return header, nil
 }
 
@@ -1822,28 +1744,12 @@ func toFixed8(n int64) util.Fixed8 {
 }
 
 func popInputFromVM(v *vm.VM) (*transaction.Input, error) {
-	inInterface := v.Estack().Pop().Value()
-	input, ok := inInterface.(*transaction.Input)
-	if !ok {
-		txio, ok := inInterface.(transaction.InOut)
-		if !ok {
-			return nil, fmt.Errorf("type mismatch: %T is not an Input or InOut", inInterface)
-		}
-		input = &txio.In
-	}
+	input := v.Estack().Pop().Value().(*transaction.Input)
 	return input, nil
 }
 
 func popOutputFromVM(v *vm.VM) (*transaction.Output, error) {
-	outInterface := v.Estack().Pop().Value()
-	output, ok := outInterface.(*transaction.Output)
-	if !ok {
-		txio, ok := outInterface.(transaction.InOut)
-		if !ok {
-			return nil, fmt.Errorf("type mismatch: %T is not an Output or InOut", outInterface)
-		}
-		output = &txio.Out
-	}
+	output := v.Estack().Pop().Value().(*transaction.Output)
 	return output, nil
 }
 
