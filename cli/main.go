@@ -1452,11 +1452,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Transaction.GetAttributes")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					txInterface := v.Estack().Pop().Value()
-					tx, ok := txInterface.(*transaction.Transaction)
-					if !ok {
-						return errors.New("value is not a transaction")
-					}
+					tx := v.Estack().Pop().Value().(*transaction.Transaction)
 					if len(tx.Attributes) > vm.MaxArraySize {
 						return errors.New("too many attributes")
 					}
@@ -1483,11 +1479,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Transaction.GetInputs")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					txInterface := v.Estack().Pop().Value()
-					tx, ok := txInterface.(*transaction.Transaction)
-					if !ok {
-						return errors.New("value is not a transaction")
-					}
+					tx := v.Estack().Pop().Value().(*transaction.Transaction)
 					if len(tx.Inputs) > vm.MaxArraySize {
 						return errors.New("too many inputs")
 					}
@@ -1504,11 +1496,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Transaction.GetOutputs")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					txInterface := v.Estack().Pop().Value()
-					tx, ok := txInterface.(*transaction.Transaction)
-					if !ok {
-						return errors.New("value is not a transaction")
-					}
+					tx := v.Estack().Pop().Value().(*transaction.Transaction)
 					if len(tx.Outputs) > vm.MaxArraySize {
 						return errors.New("too many outputs")
 					}
@@ -1534,11 +1522,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Transaction.GetType")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					txInterface := v.Estack().Pop().Value()
-					tx, ok := txInterface.(*transaction.Transaction)
-					if !ok {
-						return errors.New("value is not a transaction")
-					}
+					tx := v.Estack().Pop().Value().(*transaction.Transaction)
 					v.Estack().PushVal(int(tx.Type))
 					return nil
 				},
@@ -1557,11 +1541,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Transaction.GetWitnesses")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					txInterface := v.Estack().Pop().Value()
-					tx, ok := txInterface.(*transaction.Transaction)
-					if !ok {
-						return errors.New("value is not a transaction")
-					}
+					tx := v.Estack().Pop().Value().(*transaction.Transaction)
 					if len(tx.Scripts) > vm.MaxArraySize {
 						return errors.New("too many outputs")
 					}
