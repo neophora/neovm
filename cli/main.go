@@ -549,9 +549,6 @@ func main() {
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
 					acc := v.Estack().Pop().Value().(*state.Account)
-					if len(acc.Votes) > vm.MaxArraySize {
-						return errors.New("too many votes")
-					}
 					votes := make([]vm.StackItem, 0, len(acc.Votes))
 					for _, key := range acc.Votes {
 						votes = append(votes, vm.NewByteArrayItem(key.Bytes()))
@@ -566,10 +563,7 @@ func main() {
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
 					accbytes := v.Estack().Pop().Bytes()
-					acchash, err := util.Uint160DecodeBytesBE(accbytes)
-					if err != nil {
-						return err
-					}
+					acchash := mERR(util.Uint160DecodeBytesBE(accbytes)).(util.Uint160)
 					data := map[string]interface{}{
 						"jsonrpc": "2.0",
 						"id":      rand.Uint32(),
@@ -583,18 +577,17 @@ func main() {
 					log.Println("[RESP]", data)
 					cs := new(state.Contract)
 					cs.DecodeBinary(io.NewBinReaderFromBuf(mERR(hex.DecodeString(data["result"].(string))).([]byte)[1:]))
-					res := err != nil || vm.IsStandardContract(cs.Script)
+					res := len(cs.Script) == 0 || vm.IsStandardContract(cs.Script)
 					v.Estack().PushVal(res)
 					return nil
 				},
 				Price: 100,
 			}
-
 		case vm.InteropNameToID([]byte("Neo.Asset.Create")):
 			log.Println("[SYSCALL]", "Neo.Asset.Create")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// err = ic.dao.PutAssetState(asset)
+					// TODO : IMPL
 					return nil
 				},
 				Price: 0,
@@ -683,7 +676,6 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Asset.Renew")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// ic.dao.GetAssetState(hash)
 					// TODO: IMPL
 					return nil
 				},
@@ -874,7 +866,6 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Blockchain.GetValidators")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// state.validator()
 					// TODO: IMPL
 					return nil
 				},
@@ -884,7 +875,6 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Contract.Create")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// ic.dao.PutContractState
 					// TODO: IMPL
 					return nil
 				},
@@ -937,7 +927,6 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Contract.Migrate")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// ic.dao.MigratgeNep5Balance
 					// TODO : IMPL
 					return nil
 				},
@@ -947,7 +936,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Enumerator.Concat")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					return vm.EnumeratorCreate(v)
+					return vm.EnumeratorConcat(v)
 				},
 				Price: 1,
 			}
@@ -979,10 +968,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Header.GetConsensusData")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					header, err := popHeaderFromVM(v)
-					if err != nil {
-						return err
-					}
+					header := mERR(popHeaderFromVM(v)).(*block.Header)
 					v.Estack().PushVal(header.ConsensusData)
 					return nil
 				},
@@ -1022,10 +1008,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Header.GetNextConsensus")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					header, err := popHeaderFromVM(v)
-					if err != nil {
-						return err
-					}
+					header := mERR(popHeaderFromVM(v)).(*block.Header)
 					v.Estack().PushVal(header.NextConsensus.BytesBE())
 					return nil
 				},
@@ -1055,10 +1038,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Header.GetVersion")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					header, err := popHeaderFromVM(v)
-					if err != nil {
-						return err
-					}
+					header := mERR(popHeaderFromVM(v)).(*block.Header)
 					v.Estack().PushVal(header.Version)
 					return nil
 				},
@@ -1068,10 +1048,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Input.GetHash")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					input, err := popInputFromVM(v)
-					if err != nil {
-						return err
-					}
+					input := mERR(popInputFromVM(v)).(*transaction.Input)
 					v.Estack().PushVal(input.PrevHash.BytesBE())
 					return nil
 				},
@@ -1081,10 +1058,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Input.GetIndex")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					input, err := popInputFromVM(v)
-					if err != nil {
-						return err
-					}
+					input := mERR(popInputFromVM(v)).(*transaction.Input)
 					v.Estack().PushVal(input.PrevIndex)
 					return nil
 				},
@@ -1157,10 +1131,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Output.GetScriptHash")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					output, err := popOutputFromVM(v)
-					if err != nil {
-						return err
-					}
+					output := mERR(popOutputFromVM(v)).(*transaction.Output)
 					v.Estack().PushVal(output.ScriptHash.BytesBE())
 					return nil
 				},
@@ -1170,10 +1141,7 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Output.GetValue")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					output, err := popOutputFromVM(v)
-					if err != nil {
-						return err
-					}
+					output := mERR(popOutputFromVM(v)).(*transaction.Output)
 					v.Estack().PushVal(int64(output.Amount))
 					return nil
 				},
@@ -1293,7 +1261,6 @@ func main() {
 			log.Println("[SYSCALL]", "Neo.Storage.Find")
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					// ic.dao.GetStorageItemsIterator
 					// TODO : IMPL
 					return nil
 				},
@@ -1692,7 +1659,15 @@ func pushContextScriptHash(v *vm.VM, n int) error {
 }
 
 func popHeaderFromVM(v *vm.VM) (*block.Header, error) {
-	header := v.Estack().Pop().Value().(*block.Header)
+	iface := v.Estack().Pop().Value()
+	header, ok := iface.(*block.Header)
+	if !ok {
+		block, ok := iface.(*block.Block)
+		if !ok {
+			return nil, errors.New("value is not a header or block")
+		}
+		return block.Header(), nil
+	}
 	return header, nil
 }
 
