@@ -521,10 +521,7 @@ func main() {
 				Func: func(v *vm.VM) error {
 					acc := v.Estack().Pop().Value().(*state.Account)
 					asbytes := v.Estack().Pop().Bytes()
-					ashash, err := util.Uint256DecodeBytesBE(asbytes)
-					if err != nil {
-						return err
-					}
+					ashash := mERR(util.Uint256DecodeBytesBE(asbytes)).(util.Uint256)
 					balance, ok := acc.GetBalanceValues()[ashash]
 					if !ok {
 						balance = util.Fixed8(0)
