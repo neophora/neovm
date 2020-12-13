@@ -31,7 +31,7 @@ func main() {
 		data := map[string]interface{}{
 			"jsonrpc": "2.0",
 			"id":      rand.Uint32(),
-			"method":  "Data.GetContractByHashHeightInHex",
+			"method":  "get_contract_by_hash_height_in_hex",
 			"params":  map[string]interface{}{"Hash": hash.StringBE(), "Height": height},
 		}
 		log.Println("[REQ]", data)
@@ -94,7 +94,7 @@ func main() {
 					data := map[string]interface{}{
 						"jsonrpc": "2.0",
 						"id":      rand.Uint32(),
-						"method":  "Data.GetBlockByHashInHex",
+						"method":  "get_block_by_hash_in_hex",
 						"params":  map[string]interface{}{"Hash": hash.StringLE()},
 					}
 					log.Println("[REQ]", data)
@@ -117,7 +117,7 @@ func main() {
 					data := map[string]interface{}{
 						"jsonrpc": "2.0",
 						"id":      rand.Uint32(),
-						"method":  "Data.GetContractByHashHeightInHex",
+						"method":  "get_contract_by_hash_height_in_hex",
 						"params":  map[string]interface{}{"Hash": hash.StringBE(), "Height": height},
 					}
 					log.Println("[REQ]", data)
@@ -140,7 +140,7 @@ func main() {
 					data := map[string]interface{}{
 						"jsonrpc": "2.0",
 						"id":      rand.Uint32(),
-						"method":  "Data.GetHeaderByHashInHex",
+						"method":  "get_header_by_hash_in_hex",
 						"params":  map[string]interface{}{"Hash": hash.StringLE()},
 					}
 					log.Println("[REQ]", data)
@@ -330,7 +330,7 @@ func main() {
 					data := map[string]interface{}{
 						"jsonrpc": "2.0",
 						"id":      rand.Uint32(),
-						"method":  "Data.GetHeaderByHeightInHex",
+						"method":  "get_header_by_height_in_hex",
 						"params":  map[string]interface{}{"Height": height},
 					}
 					log.Println("[REQ]", data)
@@ -418,7 +418,7 @@ func main() {
 						data := map[string]interface{}{
 							"jsonrpc": "2.0",
 							"id":      rand.Uint32(),
-							"method":  "Data.GetStorageByDBKeyHeightInHex",
+							"method":  "get_storage_by_dbkey_height_in_hex",
 							"params":  map[string]interface{}{"DBKey": sc, "Height": height},
 						}
 						log.Println("[REQ]", data)
@@ -564,7 +564,7 @@ func main() {
 					data := map[string]interface{}{
 						"jsonrpc": "2.0",
 						"id":      rand.Uint32(),
-						"method":  "Data.GetContractByHashHeightInHex",
+						"method":  "get_contract_by_hash_height_in_hex",
 						"params":  map[string]interface{}{"Hash": acchash, "Height": height},
 					}
 					log.Println("[REQ]", data)
@@ -763,7 +763,7 @@ func main() {
 					data := map[string]interface{}{
 						"jsonrpc": "2.0",
 						"id":      rand.Uint32(),
-						"method":  "Data.GetBlockByHashInHex",
+						"method":  "get_block_by_hash_in_hex",
 						"params":  map[string]interface{}{"Hash": hash.StringLE()},
 					}
 					log.Println("[REQ]", data)
@@ -786,7 +786,7 @@ func main() {
 					data := map[string]interface{}{
 						"jsonrpc": "2.0",
 						"id":      rand.Uint32(),
-						"method":  "Data.GetContractByHashHeightInHex",
+						"method":  "get_contract_by_hash_height_in_hex",
 						"params":  map[string]interface{}{"Hash": hash.StringBE(), "Height": height},
 					}
 					log.Println("[REQ]", data)
@@ -809,7 +809,7 @@ func main() {
 					data := map[string]interface{}{
 						"jsonrpc": "2.0",
 						"id":      rand.Uint32(),
-						"method":  "Data.GetHeaderByHashInHex",
+						"method":  "get_header_by_hash_in_hex",
 						"params":  map[string]interface{}{"Hash": hash.StringLE()},
 					}
 					log.Println("[REQ]", data)
@@ -1188,7 +1188,7 @@ func main() {
 					data := map[string]interface{}{
 						"jsonrpc": "2.0",
 						"id":      rand.Uint32(),
-						"method":  "Data.GetHeaderByHeightInHex",
+						"method":  "get_header_by_height_in_hex",
 						"params":  map[string]interface{}{"Height": height},
 					}
 					log.Println("[REQ]", data)
@@ -1276,7 +1276,7 @@ func main() {
 						data := map[string]interface{}{
 							"jsonrpc": "2.0",
 							"id":      rand.Uint32(),
-							"method":  "Data.GetStorageByDBKeyHeightInHex",
+							"method":  "get_storage_by_dbkey_height_in_hex",
 							"params":  map[string]interface{}{"DBKey": sc, "Height": height},
 						}
 						log.Println("[REQ]", data)
@@ -1511,7 +1511,7 @@ func init() {
 
 	data := make(map[string]interface{})
 	data["jsonrpc"] = "2.0"
-	data["method"] = "Data.GetCountInUInt64"
+	data["method"] = "get_count_in_uint64"
 	data["params"] = map[string]interface{}{}
 	data["id"] = 1
 	bytesData, err := json.Marshal(data)
@@ -1582,7 +1582,7 @@ func getBlockHashFromElement(element *vm.Element) (util.Uint256, error) {
 		}
 		data := make(map[string]interface{})
 		data["jsonrpc"] = "2.0"
-		data["method"] = "Data.GetHashByHeightInHex"
+		data["method"] = "get_hash_by_height_in_hex"
 		data["params"] = map[string]interface{}{"Height": uint32(hashint)}
 		data["id"] = 1
 		bytesData, err := json.Marshal(data)
@@ -1618,7 +1618,7 @@ func getTransactionAndHeight(v *vm.VM) (*transaction.Transaction, uint32, error)
 
 	data := make(map[string]interface{})
 	data["jsonrpc"] = "2.0"
-	data["method"] = "Data.GetTransactionByHashInHex"
+	data["method"] = "get_transaction_by_hash_in_hex"
 	// query json here
 	data["params"] = map[string]interface{}{"Hash": hash.StringLE()}
 	data["id"] = 1
