@@ -31,8 +31,8 @@ func main() {
 		data := map[string]interface{}{
 			"jsonrpc": "2.0",
 			"id":      rand.Uint32(),
-			"method":  "Data.GetContractByHashHeightInHex",
-			"params":  map[string]interface{}{"Hash": hash.StringBE(), "Height": height},
+			"method":  "GetContractByContractHashBlockHeightInHex",
+			"params":  map[string]interface{}{"ContractHash": hash.StringBE(), "BlockHeight": height},
 		}
 		log.Println("[REQ]", data)
 		resp := mERR(http.Post(rpcaddr, "application/json", bytes.NewReader(mERR(json.Marshal(data)).([]byte)))).(*http.Response)
@@ -94,8 +94,8 @@ func main() {
 					data := map[string]interface{}{
 						"jsonrpc": "2.0",
 						"id":      rand.Uint32(),
-						"method":  "Data.GetBlockByHashInHex",
-						"params":  map[string]interface{}{"Hash": hash.StringLE()},
+						"method":  "GetBlockByBlockHashInHex",
+						"params":  map[string]interface{}{"BlockHash": hash.StringBE()},
 					}
 					log.Println("[REQ]", data)
 					resp := mERR(http.Post(rpcaddr, "application/json", bytes.NewReader(mERR(json.Marshal(data)).([]byte)))).(*http.Response)
@@ -117,8 +117,8 @@ func main() {
 					data := map[string]interface{}{
 						"jsonrpc": "2.0",
 						"id":      rand.Uint32(),
-						"method":  "Data.GetContractByHashHeightInHex",
-						"params":  map[string]interface{}{"Hash": hash.StringBE(), "Height": height},
+						"method":  "GetContractByContractHashBlockHeightInHex",
+						"params":  map[string]interface{}{"ContractHash": hash.StringBE(), "BlockHeight": height},
 					}
 					log.Println("[REQ]", data)
 					resp := mERR(http.Post(rpcaddr, "application/json", bytes.NewReader(mERR(json.Marshal(data)).([]byte)))).(*http.Response)
@@ -140,8 +140,8 @@ func main() {
 					data := map[string]interface{}{
 						"jsonrpc": "2.0",
 						"id":      rand.Uint32(),
-						"method":  "Data.GetHeaderByHashInHex",
-						"params":  map[string]interface{}{"Hash": hash.StringLE()},
+						"method":  "GetHeaderByBlockHashInHex",
+						"params":  map[string]interface{}{"BlockHash": hash.StringBE()},
 					}
 					log.Println("[REQ]", data)
 					resp := mERR(http.Post(rpcaddr, "application/json", bytes.NewReader(mERR(json.Marshal(data)).([]byte)))).(*http.Response)
@@ -330,8 +330,8 @@ func main() {
 					data := map[string]interface{}{
 						"jsonrpc": "2.0",
 						"id":      rand.Uint32(),
-						"method":  "Data.GetHeaderByHeightInHex",
-						"params":  map[string]interface{}{"Height": height},
+						"method":  "GetHeaderByBlockHeightInHex",
+						"params":  map[string]interface{}{"BlockHeight": height},
 					}
 					log.Println("[REQ]", data)
 					resp := mERR(http.Post(rpcaddr, "application/json", bytes.NewReader(mERR(json.Marshal(data)).([]byte)))).(*http.Response)
@@ -418,8 +418,8 @@ func main() {
 						data := map[string]interface{}{
 							"jsonrpc": "2.0",
 							"id":      rand.Uint32(),
-							"method":  "Data.GetStorageByDBKeyHeightInHex",
-							"params":  map[string]interface{}{"DBKey": sc, "Height": height},
+							"method":  "GetStorageByContractHashHexKeyBlockHeightInHex",
+							"params":  map[string]interface{}{"ContractHash": stc.ScriptHash.StringBE(), "HexKey": hex.EncodeToString(key), "BlockHeight": height},
 						}
 						log.Println("[REQ]", data)
 						resp := mERR(http.Post(rpcaddr, "application/json", bytes.NewReader(mERR(json.Marshal(data)).([]byte)))).(*http.Response)
@@ -428,6 +428,7 @@ func main() {
 						log.Println("[RESP]", data)
 						val := mERR(hex.DecodeString(data["result"].(string))).([]byte)
 						v.Estack().PushVal(val)
+						storage[sc] = val
 					}
 					return nil
 				},
@@ -724,8 +725,8 @@ func main() {
 					data := map[string]interface{}{
 						"jsonrpc": "2.0",
 						"id":      rand.Uint32(),
-						"method":  "Data.GetBlockByHashInHex",
-						"params":  map[string]interface{}{"Hash": hash.StringLE()},
+						"method":  "GetBlockByBlockHashInHex",
+						"params":  map[string]interface{}{"BlockHash": hash.StringBE()},
 					}
 					log.Println("[REQ]", data)
 					resp := mERR(http.Post(rpcaddr, "application/json", bytes.NewReader(mERR(json.Marshal(data)).([]byte)))).(*http.Response)
@@ -747,8 +748,8 @@ func main() {
 					data := map[string]interface{}{
 						"jsonrpc": "2.0",
 						"id":      rand.Uint32(),
-						"method":  "Data.GetContractByHashHeightInHex",
-						"params":  map[string]interface{}{"Hash": hash.StringBE(), "Height": height},
+						"method":  "GetContractByContractHashBlockHeightInHex",
+						"params":  map[string]interface{}{"ContractHash": hash.StringBE(), "BlockHeight": height},
 					}
 					log.Println("[REQ]", data)
 					resp := mERR(http.Post(rpcaddr, "application/json", bytes.NewReader(mERR(json.Marshal(data)).([]byte)))).(*http.Response)
@@ -770,8 +771,8 @@ func main() {
 					data := map[string]interface{}{
 						"jsonrpc": "2.0",
 						"id":      rand.Uint32(),
-						"method":  "Data.GetHeaderByHashInHex",
-						"params":  map[string]interface{}{"Hash": hash.StringLE()},
+						"method":  "GetHeaderByBlockHashInHex",
+						"params":  map[string]interface{}{"BlockHash": hash.StringBE()},
 					}
 					log.Println("[REQ]", data)
 					resp := mERR(http.Post(rpcaddr, "application/json", bytes.NewReader(mERR(json.Marshal(data)).([]byte)))).(*http.Response)
@@ -1144,8 +1145,8 @@ func main() {
 					data := map[string]interface{}{
 						"jsonrpc": "2.0",
 						"id":      rand.Uint32(),
-						"method":  "Data.GetHeaderByHeightInHex",
-						"params":  map[string]interface{}{"Height": height},
+						"method":  "GetHeaderByBlockHeightInHex",
+						"params":  map[string]interface{}{"BlockHeight": height},
 					}
 					log.Println("[REQ]", data)
 					resp := mERR(http.Post(rpcaddr, "application/json", bytes.NewReader(mERR(json.Marshal(data)).([]byte)))).(*http.Response)
@@ -1232,8 +1233,8 @@ func main() {
 						data := map[string]interface{}{
 							"jsonrpc": "2.0",
 							"id":      rand.Uint32(),
-							"method":  "Data.GetStorageByDBKeyHeightInHex",
-							"params":  map[string]interface{}{"DBKey": sc, "Height": height},
+							"method":  "GetStorageByContractHashHexKeyBlockHeightInHex",
+							"params":  map[string]interface{}{"ContractHash": stc.ScriptHash.StringBE(), "HexKey": hex.EncodeToString(key), "BlockHeight": height},
 						}
 						log.Println("[REQ]", data)
 						resp := mERR(http.Post(rpcaddr, "application/json", bytes.NewReader(mERR(json.Marshal(data)).([]byte)))).(*http.Response)
@@ -1242,6 +1243,7 @@ func main() {
 						log.Println("[RESP]", data)
 						val := mERR(hex.DecodeString(data["result"].(string))).([]byte)
 						v.Estack().PushVal(val)
+						storage[sc] = val
 					}
 					return nil
 				},
@@ -1431,7 +1433,7 @@ func init() {
 
 	data := make(map[string]interface{})
 	data["jsonrpc"] = "2.0"
-	data["method"] = "Data.GetCountInUInt64"
+	data["method"] = "GetCurrentBlockHeightInUint64"
 	data["params"] = map[string]interface{}{}
 	data["id"] = 1
 	bytesData, err := json.Marshal(data)
@@ -1502,8 +1504,8 @@ func getBlockHashFromElement(element *vm.Element) (util.Uint256, error) {
 		}
 		data := make(map[string]interface{})
 		data["jsonrpc"] = "2.0"
-		data["method"] = "Data.GetHashByHeightInHex"
-		data["params"] = map[string]interface{}{"Height": uint32(hashint)}
+		data["method"] = "GetBlockHashByBlockHeightInHex"
+		data["params"] = map[string]interface{}{"BlockHeight": uint32(hashint)}
 		data["id"] = 1
 		bytesData, err := json.Marshal(data)
 		if err != nil {
@@ -1525,7 +1527,7 @@ func getBlockHashFromElement(element *vm.Element) (util.Uint256, error) {
 		}
 		return util.Uint256DecodeStringBE(str)
 	} else {
-		return util.Uint256DecodeBytesBE(hashbytes)
+		return util.Uint256DecodeBytesLE(hashbytes)
 	}
 }
 
